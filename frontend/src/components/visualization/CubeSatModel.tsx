@@ -1,7 +1,12 @@
 /**
  * 6U CubeSat 3D model component.
  *
- * Dimensions: 10cm x 20cm x 30cm (1U = 10cm cube)
+ * Dimensions (1U = 10cm cube):
+ *   X axis: 1U (10cm)
+ *   Y axis: 2U (20cm)
+ *   Z axis: 3U (30cm) - longest dimension
+ *
+ * Solar panels deployed from +Z end.
  */
 
 import { useRef } from 'react';
@@ -32,15 +37,17 @@ export function CubeSatModel({ quaternion }: CubeSatModelProps) {
 
   return (
     <group ref={groupRef}>
-      {/* Main body */}
+      {/* Main body - silver aluminum appearance */}
       <mesh>
         <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial color="#333" metalness={0.8} roughness={0.4} />
+        <meshStandardMaterial color="#b8c4ce" metalness={0.8} roughness={0.2} />
       </mesh>
 
-      {/* Solar panels (deployed on +/- X faces) */}
-      <SolarPanel position={[width / 2 + 0.4, 0, 0]} rotation={[0, 0, 0]} scale={scale} />
-      <SolarPanel position={[-width / 2 - 0.4, 0, 0]} rotation={[0, 0, Math.PI]} scale={scale} />
+      {/* Solar panels (deployed from +Z end, parallel to +Z face, extending in ±X directions) */}
+      {/* +X side panel */}
+      <SolarPanel position={[width / 2 + 1.5, 0, depth / 2 + 0.05]} side="right" scale={scale} />
+      {/* -X side panel */}
+      <SolarPanel position={[-width / 2 - 1.5, 0, depth / 2 + 0.05]} side="left" scale={scale} />
 
       {/* Body frame axes indicator */}
       <BodyAxes scale={scale} />
@@ -56,26 +63,27 @@ export function CubeSatModel({ quaternion }: CubeSatModelProps) {
 
 interface SolarPanelProps {
   position: [number, number, number];
-  rotation: [number, number, number];
+  side: 'left' | 'right';
   scale: number;
 }
 
-function SolarPanel({ position, rotation, scale }: SolarPanelProps) {
-  const panelWidth = 0.2 * scale;
-  const panelHeight = 0.3 * scale;
+function SolarPanel({ position, side: _side, scale }: SolarPanelProps) {
+  // Panel size: 3U (X) x 2U (Y), parallel to +Z face
+  const panelLength = 0.3 * scale;  // X direction (3U)
+  const panelHeight = 0.2 * scale;  // Y direction (2U, same as body)
   const panelThickness = 0.01 * scale;
 
   return (
-    <group position={position} rotation={rotation}>
-      {/* Panel frame */}
+    <group position={position}>
+      {/* Panel frame - lies in XY plane (parallel to +Z face) */}
       <mesh>
-        <boxGeometry args={[panelWidth, panelHeight, panelThickness]} />
+        <boxGeometry args={[panelLength, panelHeight, panelThickness]} />
         <meshStandardMaterial color="#1a237e" metalness={0.3} roughness={0.6} />
       </mesh>
 
-      {/* Solar cells pattern */}
+      {/* Solar cells pattern - on +Z face */}
       <mesh position={[0, 0, panelThickness / 2 + 0.001]}>
-        <planeGeometry args={[panelWidth * 0.9, panelHeight * 0.9]} />
+        <planeGeometry args={[panelLength * 0.9, panelHeight * 0.9]} />
         <meshStandardMaterial
           color="#0d47a1"
           metalness={0.5}

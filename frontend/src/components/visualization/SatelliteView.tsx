@@ -29,16 +29,20 @@ export function SatelliteView({ telemetry }: SatelliteViewProps) {
           maxDistance={30}
         />
 
-        {/* Lighting */}
-        <ambientLight intensity={0.3} />
+        {/* Lighting - bright enough to see satellite from all angles */}
+        <ambientLight intensity={0.6} />
         <directionalLight
           position={[10, 10, 5]}
-          intensity={1.5}
+          intensity={2.0}
           castShadow
         />
         <directionalLight
-          position={[-5, -5, -5]}
-          intensity={0.3}
+          position={[-10, -5, -10]}
+          intensity={1.0}
+        />
+        <directionalLight
+          position={[0, 10, -10]}
+          intensity={0.8}
         />
 
         {/* Space background */}
