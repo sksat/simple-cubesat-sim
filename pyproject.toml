@@ -1,0 +1,39 @@
+[project]
+name = "simple-cubesat-sim"
+version = "0.1.0"
+description = "Web-based 6U CubeSat attitude control simulator"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "websockets>=14.0",
+    "numpy>=2.0.0",
+    "scipy>=1.14.0",
+    "sgp4>=2.23",
+    "pydantic>=2.10.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "hypothesis>=6.120.0",
+    "ruff>=0.8.0",
+    "pyright>=1.1.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
