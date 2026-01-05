@@ -47,8 +47,12 @@ class SimulationEngine:
         self.sim_time = 0.0
         self.state = SimulationState.STOPPED
 
-        # Create spacecraft
-        self.spacecraft = Spacecraft()
+        # Initial tumbling state (typical post-deployment)
+        # About 5-10 deg/s tumble rate
+        initial_omega = np.array([0.08, 0.05, -0.06])  # rad/s (~3-5 deg/s per axis)
+
+        # Create spacecraft with initial tumbling
+        self.spacecraft = Spacecraft(angular_velocity=initial_omega)
 
         # Magnetic field model (simplified - constant inertial field)
         # In a full implementation, this would use IGRF or similar
