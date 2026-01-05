@@ -550,8 +550,12 @@ dev-dependencies = [
 | Phase 4 | `bdot.py` | ✅ Done | 22 |
 | Phase 4 | `attitude_controller.py` | ✅ Done | 17 |
 | Phase 4 | `rw_unloading.py` | ✅ Done | 11 |
+| Phase 5 | `spacecraft.py` | ✅ Done | 19 |
+| Phase 5 | `engine.py` | ✅ Done | 26 |
+| Phase 5 | FastAPI backend + WebSocket | ✅ Done | - |
+| Phase 6 | Frontend WebSocket integration | ✅ Done | - |
 
-**Total Tests: 107 (all passing)**
+**Total Tests: 152 (all passing)**
 
 ### 11.2 Test Coverage Highlights
 
@@ -581,6 +585,8 @@ dev-dependencies = [
 ### 11.3 Git Commits
 
 ```
+a45f410 Add frontend WebSocket integration and telemetry display
+a4cc57d Add spacecraft model, simulation engine, and FastAPI backend
 9c55436 Add RW momentum unloading controller with TDD
 db54da4 Add 3-axis attitude controller with TDD
 2a3fafa Add magnetorquer and reaction wheel models with TDD
@@ -592,15 +598,11 @@ e89f0fd Add B-dot detumbling controller with TDD
 
 | Phase | Component | Status |
 |-------|-----------|--------|
-| Phase 2 | `attitude.py` (Euler equations + RK4) | ⏳ Pending |
+| Phase 2 | `attitude.py` (Euler equations + RK4) | ⏳ Pending (basic dynamics in spacecraft.py) |
 | Phase 2 | `orbit.py` (SGP4) | ⏳ Pending |
-| Phase 2 | `environment.py` (IGRF) | ⏳ Pending |
+| Phase 2 | `environment.py` (IGRF) | ⏳ Pending (using constant field) |
 | Phase 3 | `magnetometer.py` | ⏳ Pending |
 | Phase 3 | `gyroscope.py` | ⏳ Pending |
-| Phase 5 | `engine.py` (Simulation loop) | ⏳ Pending |
-| Phase 5 | `spacecraft.py` (6U CubeSat model) | ⏳ Pending |
-| Phase 5 | FastAPI backend + WebSocket | ⏳ Pending |
-| Phase 6 | Frontend WebSocket integration | ⏳ Pending |
 | Phase 7 | 3D visualization (Three.js + globe.gl) | ⏳ Pending |
 | Phase 8 | Charts + DuckDB.wasm | ⏳ Pending |
 
