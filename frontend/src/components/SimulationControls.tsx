@@ -2,10 +2,25 @@
  * Simulation control panel component.
  */
 
-import { useTelemetry } from '../hooks/useTelemetry';
-import type { ControlMode } from '../types/telemetry';
+import type { ControlMode, Telemetry, SimulationState } from '../types/telemetry';
 
-export function SimulationControls() {
+interface TelemetryState {
+  telemetry: Telemetry | null;
+  isConnected: boolean;
+  simulationState: SimulationState;
+  start: () => void;
+  stop: () => void;
+  pause: () => void;
+  reset: () => void;
+  setControlMode: (mode: ControlMode, targetQuaternion?: [number, number, number, number]) => void;
+  setTimeWarp: (timeWarp: number) => void;
+}
+
+interface SimulationControlsProps {
+  telemetryState: TelemetryState;
+}
+
+export function SimulationControls({ telemetryState }: SimulationControlsProps) {
   const {
     telemetry,
     isConnected,
@@ -16,7 +31,7 @@ export function SimulationControls() {
     reset,
     setControlMode,
     setTimeWarp,
-  } = useTelemetry();
+  } = telemetryState;
 
   const handleModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setControlMode(e.target.value as ControlMode);

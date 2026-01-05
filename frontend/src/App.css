@@ -38,7 +38,10 @@
 }
 
 .visualization {
+  position: relative;
   background: #0a0a1a;
+  min-height: 0; /* Allow shrinking in grid */
+  overflow: hidden;
 }
 
 .charts {
@@ -161,4 +164,33 @@
   font-size: 0.75rem;
   font-family: monospace;
   color: #ccc;
+}
+
+/* 3D Visualization overlay */
+.attitude-overlay {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.875rem;
+  color: #fff;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.attitude-euler {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.attitude-euler span {
+  color: #4fc3f7;
+}
+
+.attitude-rate span {
+  color: #aaa;
 }

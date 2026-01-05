@@ -1,7 +1,11 @@
 import { SimulationControls } from './components/SimulationControls'
+import { SatelliteView } from './components/visualization/SatelliteView'
+import { useTelemetry } from './hooks/useTelemetry'
 import './App.css'
 
 function App() {
+  const telemetryState = useTelemetry();
+
   return (
     <div className="app">
       <header className="app-header">
@@ -11,14 +15,11 @@ function App() {
 
       <main className="app-main">
         <aside className="sidebar">
-          <SimulationControls />
+          <SimulationControls telemetryState={telemetryState} />
         </aside>
 
         <section className="visualization">
-          <div className="placeholder">
-            <p>3D Visualization</p>
-            <p>(Coming Soon)</p>
-          </div>
+          <SatelliteView telemetry={telemetryState.telemetry} />
         </section>
 
         <section className="charts">
