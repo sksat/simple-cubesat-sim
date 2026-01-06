@@ -45,9 +45,9 @@ export function CubeSatModel({ quaternion }: CubeSatModelProps) {
 
       {/* Solar panels (deployed from +Z end, parallel to +Z face, extending in ±X directions) */}
       {/* +X side panel */}
-      <SolarPanel position={[width / 2 + 1.5, 0, depth / 2 + 0.05]} side="right" scale={scale} />
+      <SolarPanel position={[width / 2 + 1.5, 0, depth / 2 + 0.05]} scale={scale} />
       {/* -X side panel */}
-      <SolarPanel position={[-width / 2 - 1.5, 0, depth / 2 + 0.05]} side="left" scale={scale} />
+      <SolarPanel position={[-width / 2 - 1.5, 0, depth / 2 + 0.05]} scale={scale} />
 
       {/* Body frame axes indicator */}
       <BodyAxes scale={scale} />
@@ -63,11 +63,10 @@ export function CubeSatModel({ quaternion }: CubeSatModelProps) {
 
 interface SolarPanelProps {
   position: [number, number, number];
-  side: 'left' | 'right';
   scale: number;
 }
 
-function SolarPanel({ position, side: _side, scale }: SolarPanelProps) {
+function SolarPanel({ position, scale }: SolarPanelProps) {
   // Panel size: 3U (X) x 2U (Y), parallel to +Z face
   const panelLength = 0.3 * scale;  // X direction (3U)
   const panelHeight = 0.2 * scale;  // Y direction (2U, same as body)

@@ -99,20 +99,19 @@ function InertialAxes() {
       </mesh>
 
       {/* Axis labels */}
-      <AxisLabel text="X" position={[length + 0.5, 0, 0]} color="#ff0000" />
-      <AxisLabel text="Y" position={[0, length + 0.5, 0]} color="#00ff00" />
-      <AxisLabel text="Z" position={[0, 0, length + 0.5]} color="#0000ff" />
+      <AxisLabel position={[length + 0.5, 0, 0]} color="#ff0000" />
+      <AxisLabel position={[0, length + 0.5, 0]} color="#00ff00" />
+      <AxisLabel position={[0, 0, length + 0.5]} color="#0000ff" />
     </group>
   );
 }
 
 interface AxisLabelProps {
-  text: string;
   position: [number, number, number];
   color: string;
 }
 
-function AxisLabel({ text: _text, position, color }: AxisLabelProps) {
+function AxisLabel({ position, color }: AxisLabelProps) {
   // Simple sphere marker for axis end
   // TODO: Use @react-three/drei Text component for proper labels
   return (

@@ -38,3 +38,7 @@ coverage.xml
 
 # Local config (use config.sample.json as template)
 config.json
+
+# Playwright
+frontend/playwright-report/
+frontend/test-results/

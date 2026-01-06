@@ -105,12 +105,29 @@ frontend/src/
 - Solar panels: deployed from +Z end, parallel to +Z face
 
 ### Testing Approach
+
+**Backend (Python/pytest)**
 TDD for all control algorithms. Key test patterns:
 - Zero input → zero output
 - Sign/direction verification
 - Saturation limits
 - Energy/momentum conservation
 - Convergence simulations
+
+**Frontend (Playwright)**
+Browser-based E2E tests for visualization:
+```bash
+cd frontend && npm test        # Run all tests
+cd frontend && npm run test:ui # Interactive UI mode
+```
+Key test patterns:
+- Page loads without JavaScript errors
+- Canvas renders with proper dimensions
+- UI components are visible and interactive
+- No WebGL/WebGPU errors in console
+
+Use Playwright tests to verify viewer functionality before manual testing.
+This catches rendering issues (WebGPU compatibility, Three.js errors) early.
 
 ## WebSocket Protocol
 
