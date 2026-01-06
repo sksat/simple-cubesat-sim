@@ -37,6 +37,12 @@ export interface EnvironmentState {
   magneticField: [number, number, number];
 }
 
+export interface OrbitState {
+  latitude: number;
+  longitude: number;
+  altitude: number;
+}
+
 export interface Telemetry {
   type: 'telemetry';
   timestamp: number;
@@ -46,6 +52,7 @@ export interface Telemetry {
   actuators: ActuatorState;
   control: ControlState;
   environment: EnvironmentState;
+  orbit?: OrbitState;
 }
 
 export type SimulationState = 'STOPPED' | 'RUNNING' | 'PAUSED';

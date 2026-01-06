@@ -18,7 +18,7 @@ export function SatelliteView({ telemetry }: SatelliteViewProps) {
   const quaternion: [number, number, number, number] = telemetry?.attitude.quaternion ?? [0, 0, 0, 1];
 
   return (
-    <div style={{ width: '100%', height: '100%', background: '#0a0a1a' }}>
+    <div className="satellite-view" style={{ width: '100%', height: '100%', background: '#0a0a1a' }}>
       <Canvas>
         <PerspectiveCamera makeDefault position={[8, 6, 8]} fov={50} />
         <OrbitControls

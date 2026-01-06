@@ -1,14 +1,18 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { SimulationControls } from './components/SimulationControls'
 import { SatelliteView } from './components/visualization/SatelliteView'
+import { GlobeView } from './components/visualization/GlobeView'
 import { TelemetryCharts } from './components/charts/TelemetryCharts'
 import { useTelemetry } from './hooks/useTelemetry'
 import { useTelemetryHistory } from './hooks/useTelemetryHistory'
 import './App.css'
 
+type ViewMode = 'attitude' | 'orbit';
+
 function App() {
   const telemetryState = useTelemetry();
   const { history, addTelemetry, clear } = useTelemetryHistory();
+  const [viewMode, setViewMode] = useState<ViewMode>('attitude');
 
   // Add telemetry to history when received
   useEffect(() => {
@@ -37,7 +41,25 @@ function App() {
         </aside>
 
         <section className="visualization">
-          <SatelliteView telemetry={telemetryState.telemetry} />
+          <div className="view-mode-toggle">
+            <button
+              className={viewMode === 'attitude' ? 'active' : ''}
+              onClick={() => setViewMode('attitude')}
+            >
+              Attitude
+            </button>
+            <button
+              className={viewMode === 'orbit' ? 'active' : ''}
+              onClick={() => setViewMode('orbit')}
+            >
+              Orbit
+            </button>
+          </div>
+          {viewMode === 'attitude' ? (
+            <SatelliteView telemetry={telemetryState.telemetry} />
+          ) : (
+            <GlobeView telemetry={telemetryState.telemetry} />
+          )}
         </section>
 
         <section className="charts">
