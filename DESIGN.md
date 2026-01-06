@@ -704,12 +704,85 @@ e89f0fd Add B-dot detumbling controller with TDD
 | **Coord** | **Astropy座標変換** | ⏳ **In Progress** |
 | Phase 8 | DuckDB.wasm integration | ⏳ Pending |
 
-## 13. Future Extensions
+## 13. Planned Features
+
+### 13.1 3-Axis Attitude Control (Main/Sub Axis)
+
+2軸指向制御では、main軸とsub軸の2つの機体軸を指定した方向に向ける。
+
+**概念**
+- main軸が優先され、sub軸はmainに直交する成分のみ使用
+- 例: +Z面を太陽方向 (main)、-Y面を地球中心方向 (sub)
+
+**指向先プリセット**
+| Direction | Description |
+|-----------|-------------|
+| SUN | 太陽方向 |
+| EARTH_CENTER | 地心方向 (Nadir) |
+| GROUND_STATION | 地上局方向 |
+| IMAGING_TARGET | 撮影地点方向 (任意緯度経度) |
+
+**アルゴリズム概要**
+1. main/sub それぞれの目標方向ベクトル(ECI)を計算
+2. sub ベクトルを main に直交化 (main 優先)
+3. DCM計算: dcm_eci_to_body = dcm_target_to_body × dcm_eci_to_target^T
+4. DCM → Quaternion 変換
+
+### 13.2 Ground Station Communication
+
+**地上局**
+- 位置: 牧之原 (34.74°N, 138.22°E)
+- 通信可能条件: 仰角 > 5°
+
+**仰角計算**
+- 衛星位置(ECEF)と地上局位置(ECEF)から計算
+- local_up ベクトルと衛星方向ベクトルの角度
+
+### 13.3 Power System
+
+**SAP発電**
+- 両面展開 (+Z端から展開)
+- 両面に太陽電池セル
+- 発電効率: cos(θ) で低下 (θ: 太陽光入射角)
+
+**バッテリー**
+- SOC (State of Charge) 管理
+- 日陰で消費、日向で充電
+
+**設計検証**
+- 600km SSO でランダムタンブリングしても生存可能なバッテリー容量
+- 検証スクリプトで日陰/日向の平均発電量と消費量のバランスを確認
+
+### 13.4 Absolute Time
+
+**目的**
+- 太陽方向計算の精度向上 (現在時刻ベース)
+- テレメトリに絶対時刻表示
+
+**実装方針**
+- epoch (シミュレーション開始UTC) + sim_time で絶対時刻を計算
+
+### 13.5 Visualization Enhancement
+
+**Satellite Center View**
+- 地球と衛星のサイズ比を現実に合わせる
+- 衛星は視認可能なサイズ、地球は巨大に見える
+
+**カメラシミュレーション**
+- -Z面カメラからの映像を3D view 右下に表示
+- 撮影目標と視線中心の誤差を地表距離で表示
+
+### 13.6 Action Timeline
+
+**概念**
+- 衛星アクションのタイムライン管理
+- コンタクト予測: 次回通信可能時刻の計算
+- 撮影計画: コンタクトからN分後の撮影地点プリセット
+
+## 14. Future Extensions
 
 - Sun sensor model
 - Star tracker model
 - Orbit maneuvers (thrusters)
-- Power system simulation
 - Thermal model
-- Ground station communication windows
 - Multiple satellite simulation
