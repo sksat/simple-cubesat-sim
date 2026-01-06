@@ -3,6 +3,7 @@
  */
 
 import type { ControlMode, Telemetry, SimulationState } from '../types/telemetry';
+import { TLESettings } from './TLESettings';
 
 interface TelemetryState {
   telemetry: Telemetry | null;
@@ -95,6 +96,8 @@ export function SimulationControls({ telemetryState }: SimulationControlsProps) 
           <option value="50">50x</option>
         </select>
       </div>
+
+      <TLESettings isConnected={isConnected} />
 
       {telemetry && (
         <div className="telemetry-display">

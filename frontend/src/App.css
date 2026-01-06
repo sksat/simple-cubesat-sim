@@ -342,3 +342,102 @@
 .orbit-time span {
   color: #aaa;
 }
+
+/* TLE Settings */
+.tle-settings {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #333;
+}
+
+.tle-settings h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.tle-fetch-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tle-fetch-row input {
+  flex: 1;
+  padding: 0.4rem;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #0a0a1a;
+  color: #fff;
+  font-size: 0.75rem;
+}
+
+.tle-fetch-row button {
+  padding: 0.4rem 0.75rem;
+  border: none;
+  border-radius: 4px;
+  background: #4fc3f7;
+  color: #000;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.tle-fetch-row button:hover:not(:disabled) {
+  background: #81d4fa;
+}
+
+.tle-fetch-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tle-input {
+  margin-bottom: 0.5rem;
+}
+
+.tle-input label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.tle-line-input {
+  width: 100%;
+  padding: 0.4rem;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #0a0a1a;
+  color: #fff;
+  font-family: monospace;
+  font-size: 0.65rem;
+}
+
+.tle-set-button {
+  width: 100%;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 4px;
+  background: #333;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.tle-set-button:hover:not(:disabled) {
+  background: #444;
+}
+
+.tle-set-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tle-error {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  font-size: 0.75rem;
+}

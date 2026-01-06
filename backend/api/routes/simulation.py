@@ -26,6 +26,13 @@ class ControlModeRequest(BaseModel):
     targetQuaternion: Optional[list[float]] = None
 
 
+class TLERequest(BaseModel):
+    """TLE set request."""
+    # TLE lines are typically 69 characters but can vary slightly
+    line1: str = Field(..., min_length=60, max_length=80)
+    line2: str = Field(..., min_length=60, max_length=80)
+
+
 @router.get("/state")
 async def get_state():
     """Get current simulation state."""
@@ -112,3 +119,26 @@ async def get_telemetry():
     """Get current telemetry snapshot."""
     engine = get_engine()
     return engine.get_telemetry()
+
+
+@router.get("/tle")
+async def get_tle():
+    """Get current TLE data."""
+    engine = get_engine()
+    return engine.get_tle()
+
+
+@router.put("/tle")
+async def set_tle(request: TLERequest):
+    """Set TLE for orbit propagation."""
+    engine = get_engine()
+
+    try:
+        engine.set_tle(request.line1, request.line2)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {
+        "status": "ok",
+        **engine.get_tle(),
+    }
