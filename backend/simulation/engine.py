@@ -6,7 +6,7 @@ Manages simulation time, state, and provides telemetry.
 import numpy as np
 from numpy.typing import NDArray
 from enum import Enum, auto
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Literal
 
 from backend.config import Config, get_config
@@ -87,6 +87,14 @@ class SimulationEngine:
         if time_warp <= 0:
             raise ValueError("time_warp must be positive")
         self._time_warp = time_warp
+
+    def get_absolute_time(self) -> datetime:
+        """Get current absolute simulation time.
+
+        Returns:
+            Absolute UTC datetime corresponding to current simulation time
+        """
+        return self._sim_epoch + timedelta(seconds=self.sim_time)
 
     def start(self) -> None:
         """Start or resume simulation."""
@@ -249,6 +257,7 @@ class SimulationEngine:
 
         return {
             "timestamp": self.sim_time,
+            "absoluteTime": self.get_absolute_time().isoformat(),
             "state": self.state.name,
             "timeWarp": self._time_warp,
 
@@ -290,10 +299,15 @@ class SimulationEngine:
     def _get_sun_direction(self) -> list[float]:
         """Get current sun direction in Three.js scene coordinates.
 
+        Uses simulation absolute time for accurate sun position.
+
         Returns:
             [x, y, z] unit vector pointing toward the Sun
         """
+        from astropy.time import Time
         from backend.utils.coordinates import get_sun_direction_threejs
 
-        sun_dir = get_sun_direction_threejs()
+        # Use simulation absolute time for sun position calculation
+        sim_time = Time(self.get_absolute_time())
+        sun_dir = get_sun_direction_threejs(sim_time)
         return list(sun_dir)

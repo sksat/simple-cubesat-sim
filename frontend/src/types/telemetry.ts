@@ -54,6 +54,8 @@ export interface OrbitState {
 export interface Telemetry {
   type: 'telemetry';
   timestamp: number;
+  /** Absolute simulation time as ISO8601 UTC string */
+  absoluteTime: string;
   state: SimulationState;
   timeWarp: number;
   attitude: Attitude;

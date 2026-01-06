@@ -104,7 +104,8 @@ export function SimulationControls({ telemetryState }: SimulationControlsProps) 
           <h3>Telemetry</h3>
           <div className="telemetry-section">
             <h4>Time</h4>
-            <p>Simulation Time: {telemetry.timestamp.toFixed(1)}s</p>
+            <p>Elapsed: {telemetry.timestamp.toFixed(1)}s</p>
+            <p>UTC: {new Date(telemetry.absoluteTime).toISOString().replace('T', ' ').slice(0, 19)}</p>
             <p>State: {telemetry.state}</p>
           </div>
 

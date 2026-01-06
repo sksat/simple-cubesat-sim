@@ -5,7 +5,7 @@
 ### Phase 1: Foundation - Absolute Time & Power System
 | Status | Task | Description |
 |--------|------|-------------|
-| [ ] | Absolute time | シミュレーション絶対時刻の導入 |
+| [x] | Absolute time | シミュレーション絶対時刻の導入 |
 | [ ] | Power simulation | SAP発電・バッテリー消費の模擬 |
 | [ ] | Battery sizing | 600km SSO での生存可能性検証スクリプト |
 
