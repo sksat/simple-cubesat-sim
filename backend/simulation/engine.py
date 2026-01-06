@@ -34,13 +34,13 @@ class SimulationEngine:
     def __init__(
         self,
         dt: float = 0.1,
-        time_warp: float = 1.0,
+        time_warp: float = 5.0,
     ):
         """Initialize simulation engine.
 
         Args:
             dt: Base time step in seconds
-            time_warp: Time scaling factor (1.0 = real-time)
+            time_warp: Time scaling factor (default 5x for faster visualization)
         """
         self.dt = dt
         self._time_warp = time_warp
@@ -48,9 +48,8 @@ class SimulationEngine:
         self.state = SimulationState.STOPPED
 
         # Initial tumbling state (typical post-deployment)
-        # About 100 deg/s tumble rate for visible B-dot detumbling effect
-        # Convergence expected over multiple orbits (1 orbit ≈ 90 min at 600km)
-        initial_omega = np.array([1.0, 1.2, -0.8])  # rad/s (~57-69 deg/s per axis, |ω|≈100 deg/s)
+        # Moderate tumble rate (~10-15 deg/s) for demonstration
+        initial_omega = np.array([0.1, 0.15, -0.12])  # rad/s (~6-9 deg/s per axis, |ω|≈12 deg/s)
 
         # Create spacecraft with initial tumbling
         self.spacecraft = Spacecraft(angular_velocity=initial_omega)

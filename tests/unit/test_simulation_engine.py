@@ -33,10 +33,10 @@ class TestSimulationEngineInitialization:
         assert engine.dt == 0.05
 
     def test_default_time_warp(self):
-        """Default time warp should be 1.0 (real-time)."""
+        """Default time warp should be 5.0 (5x speed for faster visualization)."""
         engine = SimulationEngine()
 
-        assert engine.time_warp == 1.0
+        assert engine.time_warp == 5.0
 
 
 class TestSimulationEngineState:
@@ -98,7 +98,7 @@ class TestSimulationEngineStep:
 
     def test_step_advances_time(self):
         """Single step should advance simulation time."""
-        engine = SimulationEngine(dt=0.1)
+        engine = SimulationEngine(dt=0.1, time_warp=1.0)
         engine.start()
 
         engine.step()
@@ -107,7 +107,7 @@ class TestSimulationEngineStep:
 
     def test_multiple_steps(self):
         """Multiple steps should accumulate time."""
-        engine = SimulationEngine(dt=0.1)
+        engine = SimulationEngine(dt=0.1, time_warp=1.0)
         engine.start()
 
         for _ in range(10):
@@ -137,7 +137,7 @@ class TestSimulationEngineStep:
 
     def test_step_does_nothing_when_paused(self):
         """Step should not advance when paused."""
-        engine = SimulationEngine(dt=0.1)
+        engine = SimulationEngine(dt=0.1, time_warp=1.0)
         engine.start()
         engine.step()  # Advance to 0.1
         engine.pause()

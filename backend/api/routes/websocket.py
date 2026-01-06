@@ -107,18 +107,29 @@ async def send_telemetry_loop(
     engine: SimulationEngine,
     interval: float,
 ) -> None:
-    """Background task to send telemetry at regular intervals."""
+    """Background task to send telemetry at regular intervals.
+
+    Uses asyncio.to_thread() to run simulation step in thread pool,
+    preventing blocking of the async event loop during heavy computation.
+    """
+    loop = asyncio.get_event_loop()
     try:
         while True:
-            # Step simulation if running
-            engine.step()
+            loop_start = loop.time()
+
+            # Step simulation in thread pool to avoid blocking async loop
+            await asyncio.to_thread(engine.step)
 
             # Send telemetry
             telemetry = engine.get_telemetry()
             telemetry["type"] = "telemetry"
             await websocket.send_json(telemetry)
 
-            await asyncio.sleep(interval)
+            # Calculate remaining time to maintain consistent interval
+            elapsed = loop.time() - loop_start
+            sleep_time = max(0, interval - elapsed)
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
     except Exception:
         pass
 
