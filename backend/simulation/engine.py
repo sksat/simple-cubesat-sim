@@ -8,6 +8,7 @@ from numpy.typing import NDArray
 from enum import Enum, auto
 from typing import Optional, Literal
 
+from backend.config import Config, get_config
 from backend.simulation.spacecraft import Spacecraft
 
 
@@ -33,30 +34,35 @@ class SimulationEngine:
 
     def __init__(
         self,
-        dt: float = 0.1,
-        time_warp: float = 5.0,
+        dt: Optional[float] = None,
+        time_warp: Optional[float] = None,
+        config: Optional[Config] = None,
     ):
         """Initialize simulation engine.
 
         Args:
-            dt: Base time step in seconds
-            time_warp: Time scaling factor (default 5x for faster visualization)
+            dt: Base time step in seconds (overrides config)
+            time_warp: Time scaling factor (overrides config)
+            config: Configuration object (uses global config if None)
         """
-        self.dt = dt
-        self._time_warp = time_warp
+        if config is None:
+            config = get_config()
+
+        sim_cfg = config.simulation
+
+        self.dt = dt if dt is not None else sim_cfg.dt
+        self._time_warp = time_warp if time_warp is not None else sim_cfg.time_warp
         self.sim_time = 0.0
         self.state = SimulationState.STOPPED
 
-        # Initial tumbling state (typical post-deployment)
-        # Moderate tumble rate (~10-15 deg/s) for demonstration
-        initial_omega = np.array([0.1, 0.15, -0.12])  # rad/s (~6-9 deg/s per axis, |ω|≈12 deg/s)
+        # Initial tumbling state from config
+        initial_omega = np.array(sim_cfg.initial_angular_velocity)
 
         # Create spacecraft with initial tumbling
-        self.spacecraft = Spacecraft(angular_velocity=initial_omega)
+        self.spacecraft = Spacecraft(angular_velocity=initial_omega, config=config)
 
-        # Magnetic field model (simplified - constant inertial field)
-        # In a full implementation, this would use IGRF or similar
-        self._magnetic_field_inertial = np.array([30e-6, 20e-6, 10e-6])  # T
+        # Magnetic field from config (simplified - constant inertial field)
+        self._magnetic_field_inertial = np.array(sim_cfg.magnetic_field)
 
     @property
     def time_warp(self) -> float:

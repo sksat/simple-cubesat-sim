@@ -9,6 +9,7 @@ from typing import Optional, Literal
 
 from backend.actuators.magnetorquer import Magnetorquer
 from backend.actuators.reaction_wheel import ReactionWheel
+from backend.config import Config, get_config
 from backend.control.bdot import BdotController
 from backend.control.attitude_controller import AttitudeController
 from backend.control.rw_unloading import RWUnloadingController
@@ -34,22 +35,22 @@ class Spacecraft:
         quaternion: Optional[NDArray[np.float64]] = None,
         angular_velocity: Optional[NDArray[np.float64]] = None,
         inertia: Optional[NDArray[np.float64]] = None,
-        rw_inertia: float = 1e-4,
-        rw_max_speed: float = 628.3,  # ~6000 RPM
-        rw_max_torque: float = 0.001,
-        mtq_max_dipole: float = 0.2,
+        config: Optional[Config] = None,
     ):
         """Initialize spacecraft.
 
         Args:
             quaternion: Initial attitude quaternion [x, y, z, w]
             angular_velocity: Initial angular velocity (rad/s)
-            inertia: Inertia tensor (kg*m^2)
-            rw_inertia: Reaction wheel inertia per axis
-            rw_max_speed: RW maximum speed (rad/s)
-            rw_max_torque: RW maximum torque (Nm)
-            mtq_max_dipole: MTQ maximum dipole moment (Am^2)
+            inertia: Inertia tensor (overrides config if provided)
+            config: Configuration object (uses global config if None)
         """
+        if config is None:
+            config = get_config()
+
+        sc_cfg = config.spacecraft
+        ctrl_cfg = config.control
+
         # Store initial conditions for reset
         self._initial_quaternion = (
             quaternion.copy() if quaternion is not None
@@ -64,29 +65,33 @@ class Spacecraft:
         self.quaternion = self._initial_quaternion.copy()
         self.angular_velocity = self._initial_angular_velocity.copy()
 
-        # Inertia tensor (default: 6U CubeSat)
+        # Inertia tensor (override or from config)
         if inertia is not None:
             self.inertia = inertia.copy()
         else:
-            self.inertia = np.diag([0.05, 0.05, 0.02])
-
+            self.inertia = np.diag([sc_cfg.inertia_xx, sc_cfg.inertia_yy, sc_cfg.inertia_zz])
         self.inertia_inv = np.linalg.inv(self.inertia)
 
-        # Actuators
-        self.reaction_wheel = ReactionWheel(
-            inertia=rw_inertia,
-            max_speed=rw_max_speed,
-            max_torque=rw_max_torque,
-        )
-        self.magnetorquer = Magnetorquer(max_dipole=mtq_max_dipole)
+        # Actuators from config
+        rw_cfg = sc_cfg.reaction_wheel
+        mtq_cfg = sc_cfg.magnetorquer
 
-        # Controllers
-        self._bdot_controller = BdotController(gain=1e6, max_dipole=mtq_max_dipole)
+        self.reaction_wheel = ReactionWheel(
+            inertia=rw_cfg.inertia,
+            max_speed=rw_cfg.max_speed,
+            max_torque=rw_cfg.max_torque,
+        )
+        self.magnetorquer = Magnetorquer(max_dipole=mtq_cfg.max_dipole)
+
+        # Controllers from config
+        self._bdot_controller = BdotController(
+            gain=ctrl_cfg.bdot_gain, max_dipole=mtq_cfg.max_dipole
+        )
         self._attitude_controller = AttitudeController(
-            kp=0.01, kd=0.1, max_torque=rw_max_torque
+            kp=ctrl_cfg.attitude_kp, kd=ctrl_cfg.attitude_kd, max_torque=rw_cfg.max_torque
         )
         self._unloading_controller = RWUnloadingController(
-            gain=1e4, max_dipole=mtq_max_dipole
+            gain=ctrl_cfg.unloading_gain, max_dipole=mtq_cfg.max_dipole
         )
 
         # Control mode

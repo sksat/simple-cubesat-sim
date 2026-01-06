@@ -35,3 +35,6 @@ coverage.xml
 
 # Hypothesis
 .hypothesis/
+
+# Local config (use config.sample.json as template)
+config.json

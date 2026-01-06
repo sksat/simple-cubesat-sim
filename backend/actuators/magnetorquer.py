@@ -12,7 +12,7 @@ where:
     B: magnetic field vector in body frame (T)
 
 Typical 6U CubeSat magnetorquer specs:
-    - Max dipole moment: 0.2 Am^2 per axis
+    - Max dipole moment: 0.2-0.4 Am^2 per axis
     - Power consumption: ~1W at max dipole
 """
 

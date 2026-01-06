@@ -9,10 +9,10 @@ Dynamics:
     H_wheel = I_wheel * ω_wheel
 
 Typical 6U CubeSat reaction wheel specs:
-    - Wheel inertia: 1e-5 to 1e-4 kg*m^2
-    - Max speed: 6000-8000 RPM
-    - Max torque: 1-10 mNm
-    - Max momentum: 10-50 mNms
+    - Wheel inertia: ~3e-6 kg*m^2
+    - Max speed: 8000-10000 RPM (~900 rad/s)
+    - Max torque: 1-5 mNm
+    - Max momentum: ~3 mNms
 """
 
 import numpy as np
@@ -33,9 +33,9 @@ class ReactionWheel:
 
     def __init__(
         self,
-        inertia: float = 1e-4,
-        max_speed: float = 628.3,  # ~6000 RPM
-        max_torque: float = 0.001,  # 1 mNm
+        inertia: float = 3.33e-6,
+        max_speed: float = 900.0,  # ~8600 RPM
+        max_torque: float = 0.004,  # 4 mNm
         base_power: float = 0.5,
     ):
         """Initialize reaction wheel assembly.

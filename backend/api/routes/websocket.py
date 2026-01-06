@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from backend.config import check_config_changed, get_config
 from backend.simulation.engine import SimulationEngine
 
 
@@ -14,12 +15,22 @@ router = APIRouter()
 # Global simulation engine instance
 _engine: Optional[SimulationEngine] = None
 
+# Config check interval (seconds)
+CONFIG_CHECK_INTERVAL = 1.0
+
 
 def get_engine() -> SimulationEngine:
     """Get or create simulation engine instance."""
     global _engine
     if _engine is None:
         _engine = SimulationEngine()
+    return _engine
+
+
+def reset_engine() -> SimulationEngine:
+    """Reset engine with new config."""
+    global _engine
+    _engine = SimulationEngine(config=get_config())
     return _engine
 
 
@@ -102,6 +113,17 @@ async def telemetry_websocket(websocket: WebSocket):
         manager.disconnect(websocket)
 
 
+def _step_and_get_telemetry(engine: SimulationEngine) -> dict:
+    """Step simulation and get telemetry in a single call.
+
+    This runs in thread pool to avoid blocking.
+    """
+    engine.step()
+    telemetry = engine.get_telemetry()
+    telemetry["type"] = "telemetry"
+    return telemetry
+
+
 async def send_telemetry_loop(
     websocket: WebSocket,
     engine: SimulationEngine,
@@ -111,18 +133,29 @@ async def send_telemetry_loop(
 
     Uses asyncio.to_thread() to run simulation step in thread pool,
     preventing blocking of the async event loop during heavy computation.
+    Also checks for config file changes periodically.
     """
     loop = asyncio.get_event_loop()
+    last_config_check = loop.time()
+
     try:
         while True:
             loop_start = loop.time()
 
-            # Step simulation in thread pool to avoid blocking async loop
-            await asyncio.to_thread(engine.step)
+            # Check for config changes periodically (also in thread pool)
+            if loop_start - last_config_check >= CONFIG_CHECK_INTERVAL:
+                last_config_check = loop_start
+                config_changed = await asyncio.to_thread(check_config_changed)
+                if config_changed:
+                    # Config changed - reset engine and notify client
+                    engine = reset_engine()
+                    await websocket.send_json({
+                        "type": "config_reload",
+                        "message": "Configuration reloaded, simulation reset",
+                    })
 
-            # Send telemetry
-            telemetry = engine.get_telemetry()
-            telemetry["type"] = "telemetry"
+            # Step simulation and get telemetry in thread pool
+            telemetry = await asyncio.to_thread(_step_and_get_telemetry, engine)
             await websocket.send_json(telemetry)
 
             # Calculate remaining time to maintain consistent interval
