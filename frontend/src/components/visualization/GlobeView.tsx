@@ -149,7 +149,7 @@ function CameraController({ viewCenter, satellitePosition, hasTelemetry }: Camer
       e.preventDefault();
       orbitOffset.current.r = Math.max(
         0.03,
-        Math.min(2, orbitOffset.current.r * (1 + e.deltaY * 0.001))
+        Math.min(8, orbitOffset.current.r * (1 + e.deltaY * 0.001))
       );
     };
 
