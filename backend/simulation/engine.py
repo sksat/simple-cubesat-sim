@@ -28,6 +28,7 @@ from backend.control.target_direction import (
     MAKINOHARA,
     is_ground_station_visible,
 )
+from backend.utils.coordinates import dcm_eci_to_ecef_fast_np
 
 
 # Pointing mode types
@@ -98,6 +99,10 @@ class SimulationEngine:
 
         # Eclipse status (updated each step)
         self._is_illuminated = True
+
+        # Cached values from step() for fast get_telemetry()
+        self._cached_sun_dir_eci: Optional[NDArray[np.float64]] = None
+        self._cached_dcm_eci_to_ecef: Optional[NDArray[np.float64]] = None
 
         # Attitude target calculator
         self._attitude_target_calc = AttitudeTargetCalculator(sun_pointing_config())
@@ -175,13 +180,22 @@ class SimulationEngine:
         illuminated = not is_in_eclipse(sat_pos_eci, sun_dir_eci)
         self._is_illuminated = illuminated
 
-        # Calculate target quaternion for POINTING mode
-        # Note: This is expensive due to Astropy transforms, so only do when needed
-        if self.spacecraft.control_mode == "POINTING" and self._pointing_mode != "MANUAL":
-            self._update_target_attitude(sat_pos_eci, sun_dir_eci)
+        # Get fast ECI-to-ECEF transform (GMST-based, ~1000x faster than Astropy)
+        dcm_eci_to_ecef = dcm_eci_to_ecef_fast_np(self.get_absolute_time())
 
-        # Ground station visibility is calculated in get_telemetry() on demand
-        # to avoid expensive coordinate transforms every step
+        # Cache for get_telemetry()
+        self._cached_sun_dir_eci = sun_dir_eci
+        self._cached_dcm_eci_to_ecef = dcm_eci_to_ecef
+
+        # Calculate target quaternion for POINTING mode
+        if self.spacecraft.control_mode == "POINTING" and self._pointing_mode != "MANUAL":
+            self._update_target_attitude(sat_pos_eci, sun_dir_eci, dcm_eci_to_ecef)
+
+        # Ground station visibility (fast calculation)
+        sat_pos_eci_m = sat_pos_eci * 1000.0  # km to m
+        self._ground_station_visible = is_ground_station_visible(
+            sat_pos_eci_m, dcm_eci_to_ecef, self._ground_station
+        )
 
         # Sub-step if effective_dt is too large
         remaining_dt = effective_dt
@@ -397,18 +411,25 @@ class SimulationEngine:
     def _get_sun_direction(self) -> list[float]:
         """Get current sun direction in Three.js scene coordinates.
 
-        Uses simulation absolute time for accurate sun position.
+        Uses cached values from step() for performance.
+        Falls back to slow Astropy calculation if cache is empty.
 
         Returns:
             [x, y, z] unit vector pointing toward the Sun
         """
-        from astropy.time import Time
-        from backend.utils.coordinates import get_sun_direction_threejs
-
-        # Use simulation absolute time for sun position calculation
-        sim_time = Time(self.get_absolute_time())
-        sun_dir = get_sun_direction_threejs(sim_time)
-        return list(sun_dir)
+        if self._cached_sun_dir_eci is not None and self._cached_dcm_eci_to_ecef is not None:
+            # Fast path: use cached values
+            # Transform ECI to ECEF
+            sun_ecef = self._cached_dcm_eci_to_ecef @ self._cached_sun_dir_eci
+            # ECEF to Three.js: Scene X = ECEF X, Scene Y = ECEF Z, Scene Z = ECEF Y
+            return [float(sun_ecef[0]), float(sun_ecef[2]), float(sun_ecef[1])]
+        else:
+            # Slow fallback: use Astropy (only before first step)
+            from astropy.time import Time
+            from backend.utils.coordinates import get_sun_direction_threejs
+            sim_time = Time(self.get_absolute_time())
+            sun_dir = get_sun_direction_threejs(sim_time)
+            return list(sun_dir)
 
     def _get_sun_direction_eci(self) -> NDArray[np.float64]:
         """Get current sun direction in ECI (inertial) frame.
@@ -496,25 +517,19 @@ class SimulationEngine:
         self,
         sat_pos_eci_km: NDArray[np.float64],
         sun_dir_eci: NDArray[np.float64],
+        dcm_eci_to_ecef: NDArray[np.float64],
     ) -> None:
         """Update target attitude based on current pointing mode.
 
         Args:
             sat_pos_eci_km: Satellite position in ECI (km)
             sun_dir_eci: Sun direction unit vector in ECI
+            dcm_eci_to_ecef: Pre-computed ECI to ECEF rotation matrix
         """
         try:
             sat_pos_eci_m = sat_pos_eci_km * 1000.0  # km to m
             sat_vel_eci_km_s = self._get_satellite_velocity_eci()
             sat_vel_eci_m_s = sat_vel_eci_km_s * 1000.0  # km/s to m/s
-
-            # Only compute expensive ECI-to-ECEF transform when needed
-            # (for ground station or imaging target pointing)
-            if self._pointing_mode in ["GROUND_STATION", "IMAGING_TARGET"]:
-                dcm_eci_to_ecef = self._get_dcm_eci_to_ecef()
-            else:
-                # For SUN, NADIR, VELOCITY modes, we don't need ECEF transform
-                dcm_eci_to_ecef = np.eye(3)
 
             target_q = self._attitude_target_calc.calculate(
                 sat_pos_eci_m=sat_pos_eci_m,

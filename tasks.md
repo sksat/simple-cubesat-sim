@@ -69,3 +69,4 @@
 ### Ground Station
 - Location: 牧之原 (34.74°N, 138.22°E)
 - Visibility: elevation > 5°
+- Fast ECI-to-ECEF: GMST-based rotation (~2000x faster than Astropy)

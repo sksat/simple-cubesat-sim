@@ -254,4 +254,5 @@ def is_ground_station_visible(
         True if elevation angle exceeds minimum
     """
     elev = calculate_elevation_angle(sat_pos_eci_m, dcm_eci_to_ecef, ground_station)
-    return elev >= ground_station.min_elevation_deg
+    # Convert numpy.bool_ to Python bool for JSON serialization
+    return bool(elev >= ground_station.min_elevation_deg)

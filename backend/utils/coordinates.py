@@ -160,3 +160,107 @@ def get_sun_direction_threejs(time: Time | None = None) -> tuple[float, float, f
 
 # Constants
 EARTH_RADIUS_KM = 6371.0
+
+
+def gmst_from_datetime(dt) -> float:
+    """Calculate Greenwich Mean Sidereal Time from datetime.
+
+    Uses IAU 2000 formula for GMST.
+    Much faster than Astropy coordinate transforms.
+
+    Args:
+        dt: Python datetime object (timezone-aware UTC)
+
+    Returns:
+        GMST in radians
+
+    Note:
+        This ignores precession/nutation but is accurate enough
+        for ground station visibility calculations (~0.1° accuracy).
+    """
+    import math
+    from datetime import datetime, timezone
+
+    # Ensure UTC
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+
+    # Calculate Julian Date
+    # JD = 367*Y - INT(7*(Y+INT((M+9)/12))/4) + INT(275*M/9) + D + 1721013.5 + UT/24
+    year = dt.year
+    month = dt.month
+    day = dt.day
+    ut = dt.hour + dt.minute / 60.0 + dt.second / 3600.0 + dt.microsecond / 3600000000.0
+
+    # Julian Date calculation (valid for dates from March 1900 to February 2100)
+    if month <= 2:
+        year -= 1
+        month += 12
+
+    a = int(year / 100)
+    b = 2 - a + int(a / 4)
+
+    jd = int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + ut / 24.0 + b - 1524.5
+
+    # Days since J2000.0 (JD 2451545.0)
+    d = jd - 2451545.0
+
+    # GMST formula (IAU 2000)
+    # GMST in degrees = 280.46061837 + 360.98564736629 * d + ...
+    # Higher order terms are very small, ignore for this application
+    gmst_deg = 280.46061837 + 360.98564736629 * d
+
+    # Normalize to 0-360
+    gmst_deg = gmst_deg % 360.0
+    if gmst_deg < 0:
+        gmst_deg += 360.0
+
+    return math.radians(gmst_deg)
+
+
+def dcm_eci_to_ecef_fast(dt) -> tuple[tuple[float, float, float], ...]:
+    """Calculate ECI to ECEF rotation matrix using GMST.
+
+    This is a fast approximation that only accounts for Earth rotation.
+    It ignores precession, nutation, and polar motion.
+    Accurate to ~0.1° which is sufficient for ground station visibility.
+
+    Args:
+        dt: Python datetime object (timezone-aware UTC)
+
+    Returns:
+        3x3 rotation matrix as nested tuples ((r00, r01, r02), (r10, ...), ...)
+    """
+    import math
+
+    gmst = gmst_from_datetime(dt)
+
+    # ECI to ECEF is a rotation about Z by +GMST
+    # At GMST, Greenwich (ECEF x-axis) is at RA=GMST in ECI
+    # So RA=0 in ECI maps to longitude (360-GMST)° in ECEF
+    c = math.cos(gmst)
+    s = math.sin(gmst)
+
+    # Standard Rz(theta) rotation matrix
+    return (
+        (c, s, 0.0),
+        (-s, c, 0.0),
+        (0.0, 0.0, 1.0),
+    )
+
+
+def dcm_eci_to_ecef_fast_np(dt):
+    """Calculate ECI to ECEF rotation matrix using GMST (numpy version).
+
+    Same as dcm_eci_to_ecef_fast but returns numpy array.
+
+    Args:
+        dt: Python datetime object (timezone-aware UTC)
+
+    Returns:
+        3x3 numpy rotation matrix
+    """
+    import numpy as np
+
+    dcm = dcm_eci_to_ecef_fast(dt)
+    return np.array(dcm, dtype=np.float64)

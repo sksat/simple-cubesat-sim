@@ -1,6 +1,8 @@
 """Tests for coordinate transformation utilities."""
 
 import pytest
+import numpy as np
+from datetime import datetime, timezone
 from astropy.time import Time
 from backend.utils.coordinates import (
     geodetic_to_ecef,
@@ -8,6 +10,8 @@ from backend.utils.coordinates import (
     geodetic_to_threejs,
     get_sun_direction_ecef,
     get_sun_direction_threejs,
+    gmst_from_datetime,
+    dcm_eci_to_ecef_fast_np,
     EARTH_RADIUS_KM,
 )
 
@@ -159,3 +163,80 @@ class TestSunDirection:
         assert abs(three_x - ecef_x) < 0.001
         assert abs(three_y - ecef_z) < 0.001
         assert abs(three_z - ecef_y) < 0.001
+
+
+class TestGMST:
+    """Tests for GMST (Greenwich Mean Sidereal Time) functions."""
+
+    def test_gmst_matches_astropy(self):
+        """GMST should match Astropy's calculation within 0.01 degrees."""
+        dt = datetime(2026, 1, 6, 12, 0, 0, tzinfo=timezone.utc)
+
+        # Our fast implementation
+        gmst_fast = np.degrees(gmst_from_datetime(dt))
+
+        # Astropy reference
+        from astropy.coordinates import EarthLocation
+        time = Time(dt)
+        gmst_astropy = time.sidereal_time('mean', 'greenwich').deg
+
+        # Should match within 0.01 degrees
+        diff = abs(gmst_fast - gmst_astropy)
+        if diff > 180:
+            diff = 360 - diff
+        assert diff < 0.01, f"GMST diff: {diff}°"
+
+    def test_gmst_increases_with_time(self):
+        """GMST should increase by ~360° per sidereal day."""
+        dt1 = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        dt2 = datetime(2026, 1, 1, 6, 0, 0, tzinfo=timezone.utc)
+
+        gmst1 = np.degrees(gmst_from_datetime(dt1))
+        gmst2 = np.degrees(gmst_from_datetime(dt2))
+
+        # 6 hours should be ~90 degrees
+        diff = (gmst2 - gmst1) % 360
+        assert 89 < diff < 91, f"Expected ~90° for 6 hours, got {diff}°"
+
+    def test_dcm_is_rotation_matrix(self):
+        """DCM should be a proper rotation matrix (orthogonal, det=1)."""
+        dt = datetime(2026, 1, 6, 12, 0, 0, tzinfo=timezone.utc)
+        dcm = dcm_eci_to_ecef_fast_np(dt)
+
+        # Check orthogonality: R^T @ R = I
+        identity = dcm.T @ dcm
+        assert np.allclose(identity, np.eye(3), atol=1e-10)
+
+        # Check determinant = 1
+        det = np.linalg.det(dcm)
+        assert abs(det - 1.0) < 1e-10
+
+    def test_dcm_z_axis_unchanged(self):
+        """Z-axis should be unchanged by ECI-to-ECEF rotation."""
+        dt = datetime(2026, 1, 6, 12, 0, 0, tzinfo=timezone.utc)
+        dcm = dcm_eci_to_ecef_fast_np(dt)
+
+        z_eci = np.array([0, 0, 1])
+        z_ecef = dcm @ z_eci
+
+        # Z should be unchanged (rotation is around Z)
+        assert np.allclose(z_ecef, z_eci, atol=1e-10)
+
+    def test_dcm_rotates_xy_plane(self):
+        """ECI X and Y should be rotated in the XY plane."""
+        dt = datetime(2026, 1, 6, 12, 0, 0, tzinfo=timezone.utc)
+        dcm = dcm_eci_to_ecef_fast_np(dt)
+
+        x_eci = np.array([1, 0, 0])
+        y_eci = np.array([0, 1, 0])
+
+        x_ecef = dcm @ x_eci
+        y_ecef = dcm @ y_eci
+
+        # X should stay in XY plane (z=0)
+        assert abs(x_ecef[2]) < 1e-10
+        # Y should stay in XY plane (z=0)
+        assert abs(y_ecef[2]) < 1e-10
+        # Magnitudes should be preserved
+        assert np.allclose(np.linalg.norm(x_ecef), 1.0)
+        assert np.allclose(np.linalg.norm(y_ecef), 1.0)

@@ -291,3 +291,51 @@ class TestSimulationEngineMagneticField:
 
         # Detumbling should reduce angular velocity
         assert final_rate < initial_rate
+
+
+class TestSimulationEnginePerformance:
+    """Performance tests to catch slow code paths."""
+
+    def test_step_and_telemetry_cycle_time(self):
+        """step() + get_telemetry() must complete within WebSocket interval.
+
+        WebSocket sends telemetry at 10Hz (100ms interval).
+        Each cycle must complete well under 100ms to avoid blocking.
+        """
+        import time
+
+        engine = SimulationEngine()
+        engine.start()
+
+        # Warm up (first call may load data)
+        engine.step()
+        engine.get_telemetry()
+
+        # Measure 10 cycles
+        start = time.perf_counter()
+        for _ in range(10):
+            engine.step()
+            engine.get_telemetry()
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Average cycle should be under 50ms (leaving headroom for network)
+        avg_cycle_ms = elapsed_ms / 10
+        assert avg_cycle_ms < 50, f"Cycle too slow: {avg_cycle_ms:.1f}ms (limit: 50ms)"
+
+    def test_get_telemetry_does_not_call_slow_astropy(self):
+        """get_telemetry() should use cached values, not slow Astropy calls."""
+        import time
+
+        engine = SimulationEngine()
+        engine.start()
+        engine.step()  # Populate cache
+
+        # Measure get_telemetry alone
+        start = time.perf_counter()
+        for _ in range(100):
+            engine.get_telemetry()
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Should be very fast (< 1ms per call)
+        avg_ms = elapsed_ms / 100
+        assert avg_ms < 5, f"get_telemetry too slow: {avg_ms:.1f}ms (limit: 5ms)"

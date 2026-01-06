@@ -163,8 +163,9 @@ async def send_telemetry_loop(
             sleep_time = max(0, interval - elapsed)
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.error(f"Telemetry loop error: {e}", exc_info=True)
 
 
 async def receive_message_loop(
@@ -178,8 +179,9 @@ async def receive_message_loop(
             await handle_message(data, engine, websocket)
     except WebSocketDisconnect:
         pass
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.error(f"Receive loop error: {e}", exc_info=True)
 
 
 async def handle_message(
