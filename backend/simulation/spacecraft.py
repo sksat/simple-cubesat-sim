@@ -13,6 +13,7 @@ from backend.config import Config, get_config
 from backend.control.bdot import BdotController
 from backend.control.attitude_controller import AttitudeController
 from backend.control.rw_unloading import RWUnloadingController
+from backend.control.auto_unloading import AutoUnloadingController
 from backend.dynamics.quaternion import multiply, normalize, rotate_vector, conjugate
 from backend.power import PowerSystem
 
@@ -93,6 +94,16 @@ class Spacecraft:
         )
         self._unloading_controller = RWUnloadingController(
             gain=ctrl_cfg.unloading_gain, max_dipole=mtq_cfg.max_dipole
+        )
+
+        # Automatic unloading controller
+        # Uses 80% of max_speed as thresholds
+        max_speed = rw_cfg.max_speed
+        self._auto_unloading = AutoUnloadingController(
+            upper_threshold=np.array([0.8 * max_speed] * 3),
+            lower_threshold=np.array([-0.8 * max_speed] * 3),
+            target_speed=np.zeros(3),
+            control_gain=-1e-3,  # Negative gain to oppose speed (stronger)
         )
 
         # Control mode
@@ -303,8 +314,29 @@ class Spacecraft:
             # Controller outputs spacecraft torque, RW needs negative
             self.reaction_wheel.command_torque(-torque)
 
-            # Zero MTQ
-            self.magnetorquer.command(np.array([0.0, 0.0, 0.0]))
+            # Automatic unloading (c2a-aobc style)
+            # Check if any RW needs unloading and apply MTQ if needed
+            rw_speed = self.reaction_wheel.get_speed()
+            self._auto_unloading.update_state(rw_speed)
+
+            if self._auto_unloading.is_active():
+                # Use momentum-based unloading (more effective than torque-based)
+                # Only unload axes that need it (selective unloading)
+                h_rw = self.reaction_wheel.get_momentum()
+
+                # Zero out momentum for axes not needing unloading
+                h_unload = np.zeros(3)
+                for i in range(3):
+                    from backend.control.auto_unloading import UnloadingState
+                    if self._auto_unloading.state[i] != UnloadingState.OFF:
+                        h_unload[i] = h_rw[i]
+
+                # Apply standard unloading law to selected momentum
+                dipole = self._unloading_controller.compute(h_unload, magnetic_field)
+                self.magnetorquer.command(dipole)
+            else:
+                # No unloading needed
+                self.magnetorquer.command(np.array([0.0, 0.0, 0.0]))
 
         elif self._control_mode == "UNLOADING":
             # RW momentum unloading using MTQ
