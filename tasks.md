@@ -28,9 +28,9 @@
 ### Phase 4: UI Enhancement
 | Status | Task | Description |
 |--------|------|-------------|
-| [ ] | Satellite status | 左上にモード・通信・電力・軸誤差表示 |
-| [ ] | Move center button | 右上に center 選択ボタン移動 |
-| [ ] | 3-axis control UI | main/sub軸の方向・指向設定画面 |
+| [x] | Satellite status | 左上にモード・通信・電力・軸誤差表示 |
+| [x] | Move center button | 右上に center 選択ボタン移動 |
+| [x] | 3-axis control UI | main/sub軸の方向・指向設定画面 |
 
 ### Phase 5: Visualization
 | Status | Task | Description |

@@ -13,6 +13,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Telemetry } from '../../types/telemetry';
 import type { OrbitHistoryPoint } from '../../hooks/useOrbitHistory';
 import { CubeSatModel } from './CubeSatModel';
+import { StatusOverlay } from '../StatusOverlay';
 
 /** Camera offset in orbit frame (spherical coordinates) */
 interface OrbitFrameOffset {
@@ -29,12 +30,13 @@ type ViewCenter = 'earth' | 'satellite';
 interface GlobeViewProps {
   telemetry: Telemetry | null;
   orbitHistory: OrbitHistoryPoint[];
+  viewCenter: ViewCenter;
+  onViewCenterChange: (center: ViewCenter) => void;
 }
 
-export function GlobeView({ telemetry, orbitHistory }: GlobeViewProps) {
+export function GlobeView({ telemetry, orbitHistory, viewCenter }: GlobeViewProps) {
   // Extract orbit data from telemetry
   const orbit = telemetry?.orbit;
-  const [viewCenter, setViewCenter] = useState<ViewCenter>('satellite');
 
   // Satellite position for camera target
   const satellitePosition = orbit?.positionThreeJS ?? [0, 0, 0];
@@ -79,12 +81,11 @@ export function GlobeView({ telemetry, orbitHistory }: GlobeViewProps) {
         <GroundTrack history={orbitHistory} />
       </Canvas>
 
+      {/* Status overlay */}
+      <StatusOverlay telemetry={telemetry} />
+
       {/* Orbit info overlay */}
-      <OrbitOverlay
-        telemetry={telemetry}
-        viewCenter={viewCenter}
-        onViewCenterChange={setViewCenter}
-      />
+      <OrbitOverlay telemetry={telemetry} />
     </div>
   );
 }
@@ -526,33 +527,15 @@ interface OrbitOverlayProps {
   onViewCenterChange: (center: ViewCenter) => void;
 }
 
-function OrbitOverlay({ telemetry, viewCenter, onViewCenterChange }: OrbitOverlayProps) {
+function OrbitOverlay({ telemetry }: Pick<OrbitOverlayProps, 'telemetry'>) {
   if (!telemetry || !telemetry.orbit) {
-    return (
-      <div className="orbit-overlay">
-        <span>No telemetry</span>
-      </div>
-    );
+    return null;
   }
 
   const { latitude, longitude, altitude } = telemetry.orbit;
 
   return (
-    <div className="orbit-overlay">
-      <div className="view-center-toggle">
-        <button
-          className={viewCenter === 'earth' ? 'active' : ''}
-          onClick={() => onViewCenterChange('earth')}
-        >
-          Earth
-        </button>
-        <button
-          className={viewCenter === 'satellite' ? 'active' : ''}
-          onClick={() => onViewCenterChange('satellite')}
-        >
-          Satellite
-        </button>
-      </div>
+    <div className="orbit-overlay" style={{ top: '6rem' }}>
       <div className="orbit-position">
         <span>Lat: {latitude.toFixed(2)}°</span>
         <span>Lon: {longitude.toFixed(2)}°</span>

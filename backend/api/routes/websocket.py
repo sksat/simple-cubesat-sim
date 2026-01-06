@@ -208,6 +208,8 @@ async def handle_message(
             await handle_config(message, engine, websocket)
         elif msg_type == "timeline":
             await handle_timeline(message, engine, websocket)
+        elif msg_type == "pointing_config":
+            await handle_pointing_config(message, engine, websocket)
         else:
             await send_error(websocket, f"Unknown message type: {msg_type}")
 
@@ -371,6 +373,37 @@ async def handle_timeline(
 
     else:
         await send_error(websocket, f"Unknown timeline action: {action}")
+
+
+async def handle_pointing_config(
+    message: dict,
+    engine: SimulationEngine,
+    websocket: WebSocket,
+) -> None:
+    """Handle detailed pointing configuration (main/sub axis).
+
+    Message format:
+        {"type": "pointing_config",
+         "mainTarget": "SUN",
+         "mainBodyAxis": [0, 0, 1],
+         "subTarget": "EARTH_CENTER",
+         "subBodyAxis": [1, 0, 0]}
+    """
+    try:
+        main_target = message.get("mainTarget", "SUN")
+        main_body_axis = message.get("mainBodyAxis", [0, 0, 1])
+        sub_target = message.get("subTarget", "EARTH_CENTER")
+        sub_body_axis = message.get("subBodyAxis", [1, 0, 0])
+
+        engine.set_pointing_config(
+            main_target=main_target,
+            main_body_axis=main_body_axis,
+            sub_target=sub_target,
+            sub_body_axis=sub_body_axis,
+        )
+        await send_status(websocket, engine)
+    except (ValueError, KeyError) as e:
+        await send_error(websocket, f"Invalid pointing config: {e}")
 
 
 async def send_status(websocket: WebSocket, engine: SimulationEngine) -> None:

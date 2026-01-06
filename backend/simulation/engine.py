@@ -307,6 +307,45 @@ class SimulationEngine:
                 imaging_target_pointing_config(self._imaging_target)
             )
 
+    def set_pointing_config(
+        self,
+        main_target: str,
+        main_body_axis: list[float],
+        sub_target: str,
+        sub_body_axis: list[float],
+    ) -> None:
+        """Set detailed pointing configuration with main/sub axis.
+
+        Args:
+            main_target: Target direction for main axis (SUN, EARTH_CENTER, etc.)
+            main_body_axis: Body axis for main target [x, y, z]
+            sub_target: Target direction for sub axis
+            sub_body_axis: Body axis for sub target [x, y, z]
+
+        Raises:
+            ValueError: If target direction is invalid
+        """
+        # Convert string to TargetDirection enum
+        try:
+            main_dir = TargetDirection[main_target]
+            sub_dir = TargetDirection[sub_target]
+        except KeyError as e:
+            raise ValueError(f"Invalid target direction: {e}")
+
+        # Create pointing configuration
+        config = PointingConfig(
+            main_target=main_dir,
+            sub_target=sub_dir,
+            main_body_axis=np.array(main_body_axis, dtype=np.float64),
+            sub_body_axis=np.array(sub_body_axis, dtype=np.float64),
+            ground_station=self._ground_station,
+            imaging_target=self._imaging_target,
+        )
+        self._attitude_target_calc.set_config(config)
+
+        # Set mode to MANUAL to indicate custom configuration
+        self._pointing_mode = "MANUAL"
+
     def set_tle(self, line1: str, line2: str) -> None:
         """Set TLE for orbit propagation.
 

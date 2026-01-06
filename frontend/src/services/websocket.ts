@@ -10,6 +10,7 @@ import type {
   PointingMode,
   ImagingTarget,
   TimelineActionType,
+  PointingConfig,
 } from '../types/telemetry';
 
 type MessageHandler = (message: WebSocketMessage) => void;
@@ -124,6 +125,19 @@ export class TelemetryWebSocket {
    */
   setTimeWarp(timeWarp: number): void {
     this.send({ type: 'config', timeWarp });
+  }
+
+  /**
+   * Set detailed pointing configuration with main/sub axis.
+   */
+  setPointingConfig(config: PointingConfig): void {
+    this.send({
+      type: 'pointing_config',
+      mainTarget: config.mainTarget,
+      mainBodyAxis: config.mainBodyAxis,
+      subTarget: config.subTarget,
+      subBodyAxis: config.subBodyAxis,
+    });
   }
 
   // ==================== Timeline Methods ====================

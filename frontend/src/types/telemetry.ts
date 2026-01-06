@@ -26,6 +26,29 @@ export interface ActuatorState {
 
 export type PointingMode = 'MANUAL' | 'SUN' | 'NADIR' | 'GROUND_STATION' | 'IMAGING_TARGET';
 
+export type TargetDirection =
+  | 'SUN'
+  | 'EARTH_CENTER'
+  | 'GROUND_STATION'
+  | 'IMAGING_TARGET'
+  | 'VELOCITY'
+  | 'ORBIT_NORMAL';
+
+export type BodyAxis =
+  | [1, 0, 0]   // +X
+  | [-1, 0, 0]  // -X
+  | [0, 1, 0]   // +Y
+  | [0, -1, 0]  // -Y
+  | [0, 0, 1]   // +Z
+  | [0, 0, -1]; // -Z
+
+export interface PointingConfig {
+  mainTarget: TargetDirection;
+  mainBodyAxis: BodyAxis;
+  subTarget: TargetDirection;
+  subBodyAxis: BodyAxis;
+}
+
 export interface ControlState {
   mode: ControlMode;
   pointingMode: PointingMode;

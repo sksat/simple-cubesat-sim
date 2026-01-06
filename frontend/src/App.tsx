@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { SimulationControls } from './components/SimulationControls'
 import { TimelinePanel } from './components/timeline'
+import { PointingConfigPanel } from './components/PointingConfigPanel'
 import { SatelliteView } from './components/visualization/SatelliteView'
 import { GlobeView } from './components/visualization/GlobeView'
 import { TelemetryCharts } from './components/charts/TelemetryCharts'
@@ -11,6 +12,7 @@ import { useTimeline } from './hooks/useTimeline'
 import './App.css'
 
 type ViewMode = 'attitude' | 'orbit';
+type ViewCenter = 'earth' | 'satellite';
 
 function App() {
   const telemetryState = useTelemetry();
@@ -18,6 +20,7 @@ function App() {
   const { history: orbitHistory, addTelemetry: addOrbitTelemetry, clear: clearOrbitHistory } = useOrbitHistory();
   const { addAction, removeAction, refreshContact, setImagingPreset } = useTimeline();
   const [viewMode, setViewMode] = useState<ViewMode>('attitude');
+  const [viewCenter, setViewCenter] = useState<ViewCenter>('satellite');
 
   // Add telemetry to history when received
   useEffect(() => {
@@ -53,6 +56,7 @@ function App() {
             onRefreshContact={refreshContact}
             onSetImagingPreset={setImagingPreset}
           />
+          <PointingConfigPanel isConnected={telemetryState.isConnected} />
         </aside>
 
         <section className="visualization">
@@ -69,11 +73,27 @@ function App() {
             >
               Orbit
             </button>
+            {viewMode === 'orbit' && (
+              <>
+                <button
+                  className={viewCenter === 'earth' ? 'active' : ''}
+                  onClick={() => setViewCenter('earth')}
+                >
+                  Earth
+                </button>
+                <button
+                  className={viewCenter === 'satellite' ? 'active' : ''}
+                  onClick={() => setViewCenter('satellite')}
+                >
+                  Satellite
+                </button>
+              </>
+            )}
           </div>
           {viewMode === 'attitude' ? (
             <SatelliteView telemetry={telemetryState.telemetry} />
           ) : (
-            <GlobeView telemetry={telemetryState.telemetry} orbitHistory={orbitHistory} />
+            <GlobeView telemetry={telemetryState.telemetry} orbitHistory={orbitHistory} viewCenter={viewCenter} onViewCenterChange={setViewCenter} />
           )}
         </section>
 

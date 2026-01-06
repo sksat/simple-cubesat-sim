@@ -7,6 +7,7 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Stars, PerspectiveCamera } from '@react-three/drei';
 import { CubeSatModel } from './CubeSatModel';
+import { StatusOverlay } from '../StatusOverlay';
 import type { Telemetry } from '../../types/telemetry';
 
 interface SatelliteViewProps {
@@ -68,8 +69,8 @@ export function SatelliteView({ telemetry }: SatelliteViewProps) {
         <CubeSatModel quaternion={quaternion} />
       </Canvas>
 
-      {/* Attitude overlay info */}
-      <AttitudeOverlay telemetry={telemetry} />
+      {/* Status overlay */}
+      <StatusOverlay telemetry={telemetry} />
     </div>
   );
 }
@@ -122,33 +123,3 @@ function AxisLabel({ position, color }: AxisLabelProps) {
   );
 }
 
-interface AttitudeOverlayProps {
-  telemetry: Telemetry | null;
-}
-
-function AttitudeOverlay({ telemetry }: AttitudeOverlayProps) {
-  if (!telemetry) {
-    return (
-      <div className="attitude-overlay">
-        <span>No telemetry</span>
-      </div>
-    );
-  }
-
-  const euler = telemetry.attitude.eulerAngles;
-  const omega = telemetry.attitude.angularVelocity;
-  const omegaDeg = omega.map(w => (w * 180 / Math.PI).toFixed(1));
-
-  return (
-    <div className="attitude-overlay">
-      <div className="attitude-euler">
-        <span>Roll: {euler[0].toFixed(1)}°</span>
-        <span>Pitch: {euler[1].toFixed(1)}°</span>
-        <span>Yaw: {euler[2].toFixed(1)}°</span>
-      </div>
-      <div className="attitude-rate">
-        <span>ω: [{omegaDeg.join(', ')}] °/s</span>
-      </div>
-    </div>
-  );
-}
