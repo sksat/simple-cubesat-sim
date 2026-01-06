@@ -100,6 +100,7 @@ class SimulationEngine:
         """Advance simulation by one time step.
 
         Only advances if the simulation is running.
+        Uses sub-stepping for high time warp to maintain physics accuracy.
         """
         if self.state != SimulationState.RUNNING:
             return
@@ -107,14 +108,24 @@ class SimulationEngine:
         # Calculate effective time step
         effective_dt = self.dt * self._time_warp
 
-        # Get magnetic field
+        # Maximum physics dt to maintain accuracy (especially for B-dot)
+        max_physics_dt = 0.1  # seconds
+
+        # Get magnetic field (constant during this macro step)
         b_field_inertial = self.get_magnetic_field()
 
-        # Step spacecraft
-        self.spacecraft.step(
-            dt=effective_dt,
-            magnetic_field_inertial=b_field_inertial,
-        )
+        # Sub-step if effective_dt is too large
+        remaining_dt = effective_dt
+        while remaining_dt > 0:
+            physics_dt = min(remaining_dt, max_physics_dt)
+
+            # Step spacecraft
+            self.spacecraft.step(
+                dt=physics_dt,
+                magnetic_field_inertial=b_field_inertial,
+            )
+
+            remaining_dt -= physics_dt
 
         # Update simulation time
         self.sim_time += effective_dt
