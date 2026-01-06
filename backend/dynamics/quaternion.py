@@ -221,3 +221,92 @@ def error(q_current: NDArray[np.float64], q_target: NDArray[np.float64]) -> NDAr
         q_err = -q_err
 
     return q_err
+
+
+def from_dcm(dcm: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Convert rotation matrix (DCM) to quaternion.
+
+    Uses Shepperd's method for numerical stability.
+
+    Args:
+        dcm: 3x3 rotation matrix
+
+    Returns:
+        Unit quaternion [x, y, z, w]
+    """
+    trace = dcm[0, 0] + dcm[1, 1] + dcm[2, 2]
+
+    if trace > 0:
+        s = 0.5 / np.sqrt(trace + 1.0)
+        w = 0.25 / s
+        x = (dcm[2, 1] - dcm[1, 2]) * s
+        y = (dcm[0, 2] - dcm[2, 0]) * s
+        z = (dcm[1, 0] - dcm[0, 1]) * s
+    elif dcm[0, 0] > dcm[1, 1] and dcm[0, 0] > dcm[2, 2]:
+        s = 2.0 * np.sqrt(1.0 + dcm[0, 0] - dcm[1, 1] - dcm[2, 2])
+        w = (dcm[2, 1] - dcm[1, 2]) / s
+        x = 0.25 * s
+        y = (dcm[0, 1] + dcm[1, 0]) / s
+        z = (dcm[0, 2] + dcm[2, 0]) / s
+    elif dcm[1, 1] > dcm[2, 2]:
+        s = 2.0 * np.sqrt(1.0 + dcm[1, 1] - dcm[0, 0] - dcm[2, 2])
+        w = (dcm[0, 2] - dcm[2, 0]) / s
+        x = (dcm[0, 1] + dcm[1, 0]) / s
+        y = 0.25 * s
+        z = (dcm[1, 2] + dcm[2, 1]) / s
+    else:
+        s = 2.0 * np.sqrt(1.0 + dcm[2, 2] - dcm[0, 0] - dcm[1, 1])
+        w = (dcm[1, 0] - dcm[0, 1]) / s
+        x = (dcm[0, 2] + dcm[2, 0]) / s
+        y = (dcm[1, 2] + dcm[2, 1]) / s
+        z = 0.25 * s
+
+    q = np.array([x, y, z, w])
+
+    # Ensure positive scalar part for consistency
+    if w < 0:
+        q = -q
+
+    return normalize(q)
+
+
+def make_dcm_from_two_vectors(
+    v1: NDArray[np.float64],
+    v2: NDArray[np.float64],
+) -> NDArray[np.float64]:
+    """Create DCM from two direction vectors.
+
+    Creates a coordinate frame where:
+    - X axis is aligned with v1
+    - Y axis is in the plane spanned by v1 and v2, orthogonal to X
+    - Z axis = X × Y (right-handed)
+
+    Args:
+        v1: First direction vector (will be X axis after normalization)
+        v2: Second direction vector (used to define XY plane)
+
+    Returns:
+        3x3 DCM where rows are the coordinate frame axes
+
+    Raises:
+        ValueError: If vectors are parallel or zero
+    """
+    # Normalize v1 -> X axis
+    v1_norm = np.linalg.norm(v1)
+    if v1_norm < 1e-10:
+        raise ValueError("v1 is zero vector")
+    x_axis = v1 / v1_norm
+
+    # Make v2 orthogonal to v1 using Gram-Schmidt
+    # v2' = v2 - (v2 · x) * x
+    v2_proj = v2 - np.dot(v2, x_axis) * x_axis
+    v2_norm = np.linalg.norm(v2_proj)
+    if v2_norm < 1e-10:
+        raise ValueError("v1 and v2 are parallel")
+    y_axis = v2_proj / v2_norm
+
+    # Z axis = X × Y
+    z_axis = np.cross(x_axis, y_axis)
+
+    # DCM rows are the axes
+    return np.array([x_axis, y_axis, z_axis], dtype=np.float64)

@@ -12,11 +12,11 @@
 ### Phase 2: 3-Axis Attitude Control
 | Status | Task | Description |
 |--------|------|-------------|
-| [ ] | Target direction types | SUN, EARTH_CENTER, GROUND_STATION, IMAGING_TARGET |
-| [ ] | Main/Sub axis concept | 2軸指向制御ロジック実装 |
-| [ ] | Target quaternion calc | DCM→Quaternion計算 |
-| [ ] | Ground station | 牧之原の座標設定、仰角5度以上で通信可能 |
-| [ ] | Imaging target | 任意緯度経度の設定 |
+| [x] | Target direction types | SUN, EARTH_CENTER, GROUND_STATION, IMAGING_TARGET |
+| [x] | Main/Sub axis concept | 2軸指向制御ロジック実装 |
+| [x] | Target quaternion calc | DCM→Quaternion計算 |
+| [x] | Ground station | 牧之原の座標設定、仰角5度以上で通信可能 |
+| [x] | Imaging target | 任意緯度経度の設定 |
 
 ### Phase 3: Timeline & Contact
 | Status | Task | Description |
