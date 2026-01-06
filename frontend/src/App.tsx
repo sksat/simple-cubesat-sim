@@ -1,10 +1,28 @@
+import { useEffect } from 'react'
 import { SimulationControls } from './components/SimulationControls'
 import { SatelliteView } from './components/visualization/SatelliteView'
+import { TelemetryCharts } from './components/charts/TelemetryCharts'
 import { useTelemetry } from './hooks/useTelemetry'
+import { useTelemetryHistory } from './hooks/useTelemetryHistory'
 import './App.css'
 
 function App() {
   const telemetryState = useTelemetry();
+  const { history, addTelemetry, clear } = useTelemetryHistory();
+
+  // Add telemetry to history when received
+  useEffect(() => {
+    if (telemetryState.telemetry) {
+      addTelemetry(telemetryState.telemetry);
+    }
+  }, [telemetryState.telemetry, addTelemetry]);
+
+  // Clear history on reset
+  useEffect(() => {
+    if (telemetryState.simulationState === 'STOPPED') {
+      clear();
+    }
+  }, [telemetryState.simulationState, clear]);
 
   return (
     <div className="app">
@@ -23,10 +41,7 @@ function App() {
         </section>
 
         <section className="charts">
-          <div className="placeholder">
-            <p>Time Series Charts</p>
-            <p>(Coming Soon)</p>
-          </div>
+          <TelemetryCharts history={history} />
         </section>
       </main>
     </div>

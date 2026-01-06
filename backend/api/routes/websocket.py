@@ -70,27 +70,35 @@ async def telemetry_websocket(websocket: WebSocket):
     telemetry_rate = 10.0
     telemetry_interval = 1.0 / telemetry_rate
 
+    # Create separate tasks for sending and receiving
+    send_task = asyncio.create_task(
+        send_telemetry_loop(websocket, engine, telemetry_interval)
+    )
+    receive_task = asyncio.create_task(
+        receive_message_loop(websocket, engine)
+    )
+
     try:
-        # Start background task to send telemetry
-        send_task = asyncio.create_task(
-            send_telemetry_loop(websocket, engine, telemetry_interval)
+        # Wait for either task to complete (usually due to disconnect)
+        done, pending = await asyncio.wait(
+            [send_task, receive_task],
+            return_when=asyncio.FIRST_COMPLETED,
         )
 
-        # Handle incoming messages
-        while True:
+        # Cancel pending tasks
+        for task in pending:
+            task.cancel()
             try:
-                data = await asyncio.wait_for(
-                    websocket.receive_text(),
-                    timeout=0.1,
-                )
-                await handle_message(data, engine, websocket)
-            except asyncio.TimeoutError:
-                continue
+                await task
+            except asyncio.CancelledError:
+                pass
 
-    except WebSocketDisconnect:
+    except Exception:
         pass
     finally:
+        # Ensure both tasks are cancelled
         send_task.cancel()
+        receive_task.cancel()
         manager.disconnect(websocket)
 
 
@@ -100,8 +108,8 @@ async def send_telemetry_loop(
     interval: float,
 ) -> None:
     """Background task to send telemetry at regular intervals."""
-    while True:
-        try:
+    try:
+        while True:
             # Step simulation if running
             engine.step()
 
@@ -111,8 +119,23 @@ async def send_telemetry_loop(
             await websocket.send_json(telemetry)
 
             await asyncio.sleep(interval)
-        except Exception:
-            break
+    except Exception:
+        pass
+
+
+async def receive_message_loop(
+    websocket: WebSocket,
+    engine: SimulationEngine,
+) -> None:
+    """Background task to receive and handle messages."""
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await handle_message(data, engine, websocket)
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
 
 
 async def handle_message(

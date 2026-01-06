@@ -48,8 +48,9 @@ class SimulationEngine:
         self.state = SimulationState.STOPPED
 
         # Initial tumbling state (typical post-deployment)
-        # About 5-10 deg/s tumble rate
-        initial_omega = np.array([0.08, 0.05, -0.06])  # rad/s (~3-5 deg/s per axis)
+        # About 15 deg/s tumble rate for visible B-dot detumbling effect
+        # Convergence expected over multiple orbits (1 orbit ≈ 90 min at 600km)
+        initial_omega = np.array([0.15, 0.20, -0.12])  # rad/s (~8-11 deg/s per axis, |ω|≈16 deg/s)
 
         # Create spacecraft with initial tumbling
         self.spacecraft = Spacecraft(angular_velocity=initial_omega)
