@@ -22,13 +22,14 @@ Web ベースの 6U CubeSat シミュレータ。姿勢制御（MTQ + RW）の�
 | Frontend | React + TypeScript | UI フレームワーク |
 | Bundler | Vite | 高速な開発サーバー |
 | 3D (Satellite) | Three.js + React Three Fiber | 衛星の 3D 表示 |
-| 3D (Earth) | globe.gl | 地球と軌道の表示 |
+| 3D (Earth) | Three.js + React Three Fiber | 地球と軌道の表示 |
 | Charts | Plotly.js | 時系列グラフ |
 | Client DB | DuckDB.wasm | テレメトリ保存・クエリ |
 | Backend | Python + FastAPI | シミュレーションサーバー |
 | WebSocket | FastAPI WebSockets | リアルタイム通信 |
 | Python Env | uv | 依存関係管理 |
-| Testing | pytest | TDD |
+| Testing | pytest (backend), Playwright (frontend) | TDD, E2E |
+| **Coordinates** | **Astropy** | **座標変換（信頼性重視）** |
 
 ## 3. System Architecture
 
@@ -335,9 +336,98 @@ Field Strength (typical LEO):
     Varies with latitude and altitude
 ```
 
-## 8. WebSocket Protocol
+## 8. Coordinate Systems and Transformations
 
-### 8.1 Message Types
+### 8.1 Design Philosophy
+
+座標変換は宇宙システムにおいて最も間違いやすい部分の一つ。自前実装を避け、**Astropy** のような信頼性の高いライブラリを使用する。
+
+```
+原則:
+1. 座標変換はバックエンド(Python)で完結させる
+2. フロントエンドには描画に必要な座標を直接送信
+3. 自前の座標変換コードは最小限に
+```
+
+### 8.2 Coordinate Frames
+
+| Frame | Description | Use Case |
+|-------|-------------|----------|
+| ECI (GCRS) | Earth-Centered Inertial | 慣性系での姿勢・軌道 |
+| ECEF (ITRS) | Earth-Centered Earth-Fixed | 地上位置との対応 |
+| Geodetic | lat/lon/alt | 人間が理解しやすい表示 |
+| Body | 衛星機体座標系 | 姿勢制御、センサ |
+
+### 8.3 Implementation with Astropy
+
+```python
+from astropy import units as u
+from astropy.coordinates import EarthLocation, GCRS, ITRS
+from astropy.time import Time
+
+# Geodetic → ECEF (for 3D visualization)
+def geodetic_to_ecef(lat_deg: float, lon_deg: float, alt_km: float) -> tuple[float, float, float]:
+    """Convert geodetic coordinates to ECEF using Astropy.
+
+    Returns:
+        (x, y, z) in km, ECEF frame
+    """
+    location = EarthLocation(
+        lat=lat_deg * u.deg,
+        lon=lon_deg * u.deg,
+        height=alt_km * u.km
+    )
+    # Get geocentric (ECEF) coordinates
+    x = location.x.to(u.km).value
+    y = location.y.to(u.km).value
+    z = location.z.to(u.km).value
+    return (x, y, z)
+```
+
+### 8.4 Telemetry Coordinate Data
+
+バックエンドは以下の座標データをテレメトリに含める:
+
+```typescript
+orbit: {
+  // Geodetic (for display)
+  latitude: number;   // deg
+  longitude: number;  // deg
+  altitude: number;   // km
+
+  // ECEF (for 3D rendering) - Astropy で計算
+  positionECEF: [number, number, number];  // km
+}
+```
+
+フロントエンドは `positionECEF` を正規化して Three.js 座標に直接マッピング:
+
+```typescript
+// Earth radius = 1 in Three.js scene
+const EARTH_RADIUS_KM = 6371;
+const x = positionECEF[0] / EARTH_RADIUS_KM;
+const y = positionECEF[1] / EARTH_RADIUS_KM;
+const z = positionECEF[2] / EARTH_RADIUS_KM;
+```
+
+### 8.5 Three.js Scene Coordinate Convention
+
+```
+Three.js Scene:
+- Y軸: 北極方向 (up)
+- X軸: 経度0°, 緯度0° (赤道・グリニッジ子午線)
+- Z軸: 経度90°E, 緯度0°
+- 地球半径 = 1
+
+ECEF→Three.js mapping:
+  Three.js X = ECEF X / R_earth
+  Three.js Y = ECEF Z / R_earth  (ECEF Z is toward North Pole)
+  Three.js Z = ECEF Y / R_earth
+```
+
+## 9. WebSocket Protocol
+
+### 9.1 Message Types
 
 #### Server → Client
 
@@ -436,7 +526,7 @@ interface ConfigCommand {
 }
 ```
 
-### 8.2 REST API
+### 9.2 REST API
 
 ```
 GET  /api/simulation/state          # Current state
@@ -447,9 +537,9 @@ PUT  /api/simulation/config         # Update config
 GET  /api/spacecraft/config         # Spacecraft params
 ```
 
-## 9. Testing Strategy
+## 10. Testing Strategy
 
-### 9.1 TDD Approach
+### 10.1 TDD Approach
 
 全ての制御アルゴリズムは TDD で開発する。
 
@@ -460,7 +550,7 @@ Red-Green-Refactor Cycle:
 3. Refactor for clarity
 ```
 
-### 9.2 Test Categories
+### 10.2 Test Categories
 
 | Category | Purpose | Coverage Target |
 |----------|---------|-----------------|
@@ -469,7 +559,7 @@ Red-Green-Refactor Cycle:
 | Integration | Subsystem interactions | Key scenarios |
 | Property-based | Invariants | Math operations |
 
-### 9.3 Key Test Cases
+### 10.3 Key Test Cases
 
 #### B-dot Controller
 - Zero dB/dt → zero dipole
@@ -488,7 +578,7 @@ Red-Green-Refactor Cycle:
 - MTQ saturation handling
 - Attitude disturbance minimization
 
-## 10. Dependencies
+## 11. Dependencies
 
 ### Python (Backend)
 ```toml
@@ -501,6 +591,7 @@ dependencies = [
     "scipy>=1.12.0",
     "sgp4>=2.23",
     "pydantic>=2.5.0",
+    "astropy>=6.0.0",          # 座標変換（信頼性重視）
 ]
 
 [tool.uv]
@@ -534,9 +625,9 @@ dev-dependencies = [
 }
 ```
 
-## 11. Implementation Status
+## 12. Implementation Status
 
-### 11.1 Completed Components
+### 12.1 Completed Components
 
 | Phase | Component | Status | Tests |
 |-------|-----------|--------|-------|
@@ -554,10 +645,17 @@ dev-dependencies = [
 | Phase 5 | `engine.py` | ✅ Done | 26 |
 | Phase 5 | FastAPI backend + WebSocket | ✅ Done | - |
 | Phase 6 | Frontend WebSocket integration | ✅ Done | - |
+| Phase 7 | SatelliteView (Three.js) | ✅ Done | 12 (Playwright) |
+| Phase 7 | GlobeView (Three.js orbit view) | ✅ Done | 12 (Playwright) |
+| Phase 7 | CubeSatModel (6U 3D model) | ✅ Done | - |
+| Phase 8 | TelemetryCharts (Plotly.js) | ✅ Done | - |
+| Phase 8 | useTelemetryHistory hook | ✅ Done | - |
+| Phase 8 | useOrbitHistory hook | ✅ Done | - |
 
-**Total Tests: 152 (all passing)**
+**Total Backend Tests: 152 (all passing)**
+**Total Frontend Tests: 12 (Playwright E2E, all passing)**
 
-### 11.2 Test Coverage Highlights
+### 12.2 Test Coverage Highlights
 
 #### B-dot Controller
 - Basic control law verification
@@ -582,7 +680,7 @@ dev-dependencies = [
 - Torque direction alignment
 - **Momentum reduction simulation**
 
-### 11.3 Git Commits
+### 12.3 Git Commits
 
 ```
 a45f410 Add frontend WebSocket integration and telemetry display
@@ -594,19 +692,19 @@ e89f0fd Add B-dot detumbling controller with TDD
 99a46cb Initial project setup with quaternion module (TDD)
 ```
 
-### 11.4 Remaining Tasks
+### 12.4 Remaining Tasks
 
 | Phase | Component | Status |
 |-------|-----------|--------|
 | Phase 2 | `attitude.py` (Euler equations + RK4) | ⏳ Pending (basic dynamics in spacecraft.py) |
-| Phase 2 | `orbit.py` (SGP4) | ⏳ Pending |
+| Phase 2 | `orbit.py` (SGP4) | ⏳ Pending (simplified circular orbit implemented) |
 | Phase 2 | `environment.py` (IGRF) | ⏳ Pending (using constant field) |
 | Phase 3 | `magnetometer.py` | ⏳ Pending |
 | Phase 3 | `gyroscope.py` | ⏳ Pending |
-| Phase 7 | 3D visualization (Three.js + globe.gl) | ⏳ Pending |
-| Phase 8 | Charts + DuckDB.wasm | ⏳ Pending |
+| **Coord** | **Astropy座標変換** | ⏳ **In Progress** |
+| Phase 8 | DuckDB.wasm integration | ⏳ Pending |
 
-## 12. Future Extensions
+## 13. Future Extensions
 
 - Sun sensor model
 - Star tracker model

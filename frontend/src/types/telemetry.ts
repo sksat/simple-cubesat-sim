@@ -43,6 +43,10 @@ export interface OrbitState {
   altitude: number;
   inclination: number;
   period: number;
+  /** ECEF position in km (computed by Astropy) */
+  positionECEF: [number, number, number];
+  /** Three.js scene coordinates (normalized, Earth radius = 1) */
+  positionThreeJS: [number, number, number];
 }
 
 export interface Telemetry {

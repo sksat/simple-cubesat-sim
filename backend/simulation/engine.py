@@ -211,12 +211,20 @@ class SimulationEngine:
         # Normalize to [-180, 180]
         longitude = ((longitude + 180) % 360) - 180
 
+        # Calculate ECEF and Three.js coordinates using Astropy
+        from backend.utils.coordinates import geodetic_to_ecef, geodetic_to_threejs
+
+        ecef = geodetic_to_ecef(latitude, longitude, altitude)
+        threejs = geodetic_to_threejs(latitude, longitude, altitude)
+
         return {
             "latitude": float(latitude),
             "longitude": float(longitude),
             "altitude": float(altitude),
             "inclination": float(inclination),
             "period": float(period),
+            "positionECEF": list(ecef),
+            "positionThreeJS": list(threejs),
         }
 
     def get_telemetry(self) -> dict:

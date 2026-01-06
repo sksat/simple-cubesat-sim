@@ -49,9 +49,7 @@ export function GlobeView({ telemetry, orbitHistory }: GlobeViewProps) {
         {/* Satellite with CubeSat model */}
         {orbit && telemetry && (
           <SatelliteMarker
-            latitude={orbit.latitude}
-            longitude={orbit.longitude}
-            altitude={orbit.altitude}
+            position={orbit.positionThreeJS}
             quaternion={telemetry.attitude.quaternion}
           />
         )}
@@ -67,8 +65,6 @@ export function GlobeView({ telemetry, orbitHistory }: GlobeViewProps) {
 }
 
 function Earth() {
-  const meshRef = useRef<THREE.Mesh>(null);
-
   // Load NASA Blue Marble Earth texture
   const texture = useMemo(() => {
     const loader = new THREE.TextureLoader();
@@ -90,15 +86,15 @@ function Earth() {
     return tex;
   }, []);
 
-  // Slow rotation to simulate Earth rotation
-  useFrame(() => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += 0.0005;
-    }
-  });
-
+  // Static Earth - no animation
+  // Earth rotation is already accounted for in backend longitude calculation
+  // Backend coordinate system (Astropy ECEF → Three.js):
+  //   Scene X: lon=0° (prime meridian)
+  //   Scene Y: North Pole (up)
+  //   Scene Z: lon=90°E
+  // Three.js SphereGeometry maps texture center (u=0.5, lon=0) to +X, which matches.
   return (
-    <mesh ref={meshRef}>
+    <mesh>
       <sphereGeometry args={[1, 64, 64]} />
       <meshStandardMaterial
         map={texture}
@@ -110,32 +106,22 @@ function Earth() {
 }
 
 interface SatelliteMarkerProps {
-  latitude: number;
-  longitude: number;
-  altitude: number;
+  /** Pre-computed Three.js position from backend (Astropy) */
+  position: [number, number, number];
   quaternion: [number, number, number, number];
 }
 
-function SatelliteMarker({ latitude, longitude, altitude, quaternion }: SatelliteMarkerProps) {
+function SatelliteMarker({ position, quaternion }: SatelliteMarkerProps) {
   const groupRef = useRef<THREE.Group>(null);
 
-  // Convert lat/lon/alt to 3D position
-  // Earth radius = 1, altitude in km scaled to scene
-  const earthRadius = 1;
-  const altitudeScale = altitude / 6371; // Earth radius = 6371 km
-  const r = earthRadius + altitudeScale;
+  // Position from backend (already in Three.js coordinates via Astropy)
+  const [x, y, z] = position;
 
-  const latRad = (latitude * Math.PI) / 180;
-  const lonRad = (longitude * Math.PI) / 180;
-
-  const x = r * Math.cos(latRad) * Math.sin(lonRad);
-  const y = r * Math.sin(latRad);
-  const z = r * Math.cos(latRad) * Math.cos(lonRad);
-
-  // Ground position (on Earth surface)
-  const groundX = earthRadius * Math.cos(latRad) * Math.sin(lonRad);
-  const groundY = earthRadius * Math.sin(latRad);
-  const groundZ = earthRadius * Math.cos(latRad) * Math.cos(lonRad);
+  // Ground position (normalized to Earth surface, radius = 1)
+  const r = Math.sqrt(x * x + y * y + z * z);
+  const groundX = x / r;
+  const groundY = y / r;
+  const groundZ = z / r;
 
   // Compute local frame transformation
   // The satellite's local "up" should point radially outward
@@ -201,26 +187,16 @@ interface GroundTrackProps {
 }
 
 function GroundTrack({ history }: GroundTrackProps) {
-  // Convert orbit history to 3D points
-  // Need to handle longitude discontinuities (wrap-around at ±180°)
+  // Use pre-computed Three.js coordinates from backend (Astropy)
+  // Handle longitude discontinuities (wrap-around at ±180°) for line segments
   const segments = useMemo(() => {
     if (history.length < 2) return [];
 
-    const earthRadius = 1;
     const allSegments: [number, number, number][][] = [];
     let currentSegment: [number, number, number][] = [];
 
     for (let i = 0; i < history.length; i++) {
       const point = history[i];
-      const altitudeScale = point.altitude / 6371;
-      const r = earthRadius + altitudeScale;
-
-      const latRad = (point.latitude * Math.PI) / 180;
-      const lonRad = (point.longitude * Math.PI) / 180;
-
-      const x = r * Math.cos(latRad) * Math.sin(lonRad);
-      const y = r * Math.sin(latRad);
-      const z = r * Math.cos(latRad) * Math.cos(lonRad);
 
       // Check for longitude discontinuity (wrap-around)
       if (i > 0) {
@@ -235,7 +211,8 @@ function GroundTrack({ history }: GroundTrackProps) {
         }
       }
 
-      currentSegment.push([x, y, z]);
+      // Use pre-computed position from backend
+      currentSegment.push(point.positionThreeJS);
     }
 
     // Add final segment

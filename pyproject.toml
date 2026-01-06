@@ -12,6 +12,7 @@ dependencies = [
     "scipy>=1.14.0",
     "sgp4>=2.23",
     "pydantic>=2.10.0",
+    "astropy>=6.0.0",
 ]
 
 [dependency-groups]

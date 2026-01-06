@@ -10,6 +10,8 @@ export interface OrbitHistoryPoint {
   latitude: number;
   longitude: number;
   altitude: number;
+  /** Pre-computed Three.js coordinates from backend (Astropy) */
+  positionThreeJS: [number, number, number];
 }
 
 interface UseOrbitHistoryResult {
@@ -44,6 +46,7 @@ export function useOrbitHistory(): UseOrbitHistoryResult {
       latitude: telemetry.orbit.latitude,
       longitude: telemetry.orbit.longitude,
       altitude: telemetry.orbit.altitude,
+      positionThreeJS: telemetry.orbit.positionThreeJS,
     };
 
     setHistory(prev => {
