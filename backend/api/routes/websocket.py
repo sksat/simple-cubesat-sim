@@ -353,6 +353,22 @@ async def handle_timeline(
             "nextContact": contact,
         })
 
+    elif action == "imaging_preset":
+        offset = message.get("offsetSeconds", 300.0)
+        schedule = message.get("scheduleAction", False)
+        result = engine.set_imaging_preset(
+            offset_seconds=offset,
+            schedule_action=schedule,
+        )
+        if result:
+            await websocket.send_json({
+                "type": "timeline_event",
+                "event": "imaging_preset_set",
+                "preset": result,
+            })
+        else:
+            await send_error(websocket, "No contact predicted for imaging preset")
+
     else:
         await send_error(websocket, f"Unknown timeline action: {action}")
 

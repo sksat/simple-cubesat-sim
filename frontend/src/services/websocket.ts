@@ -167,6 +167,18 @@ export class TelemetryWebSocket {
   }
 
   /**
+   * Set imaging target from contact + offset.
+   */
+  setImagingPreset(offsetSeconds: number = 300, scheduleAction: boolean = false): void {
+    this.send({
+      type: 'timeline',
+      action: 'imaging_preset',
+      offsetSeconds,
+      scheduleAction,
+    });
+  }
+
+  /**
    * Subscribe to messages.
    */
   onMessage(handler: MessageHandler): () => void {

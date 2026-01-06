@@ -713,3 +713,104 @@ class SimulationEngine:
         ):
             # Cache expired, trigger update
             self.get_next_contact()
+
+    # ==================== Imaging Preset Methods ====================
+
+    def get_ground_track_at_time(self, target_time: float) -> dict:
+        """Get satellite ground track position at a specific simulation time.
+
+        Args:
+            target_time: Simulation time in seconds
+
+        Returns:
+            Dict with latitude, longitude, altitude
+        """
+        orbit_state = self._orbit_propagator.propagate(target_time, self._sim_epoch)
+        return {
+            "latitude": float(orbit_state.latitude),
+            "longitude": float(orbit_state.longitude),
+            "altitude": float(orbit_state.altitude),
+            "time": target_time,
+        }
+
+    def calculate_imaging_preset(
+        self,
+        offset_seconds: float = 300.0,
+    ) -> Optional[dict]:
+        """Calculate imaging target based on next contact + offset.
+
+        This is useful for planning imaging operations during a contact window.
+        The imaging target is set to where the satellite will be at AOS + offset.
+
+        Args:
+            offset_seconds: Time offset from contact AOS in seconds (default 5 min)
+
+        Returns:
+            Dict with imaging target info, or None if no contact predicted
+        """
+        contact = self.get_next_contact()
+        if contact is None:
+            return None
+
+        # Calculate target time (AOS + offset)
+        target_time = contact.start_time + offset_seconds
+
+        # Ensure target time is within contact window (with some margin)
+        if target_time > contact.end_time + 60:
+            # Target time is after contact, use mid-contact instead
+            target_time = (contact.start_time + contact.end_time) / 2
+
+        # Get ground track at target time
+        ground_track = self.get_ground_track_at_time(target_time)
+
+        return {
+            "latitude": ground_track["latitude"],
+            "longitude": ground_track["longitude"],
+            "altitude": 0.0,  # Target on ground
+            "targetTime": target_time,
+            "contactStartTime": contact.start_time,
+            "offsetSeconds": offset_seconds,
+        }
+
+    def set_imaging_preset(
+        self,
+        offset_seconds: float = 300.0,
+        schedule_action: bool = False,
+    ) -> Optional[dict]:
+        """Set imaging target to satellite ground track at contact + offset.
+
+        Args:
+            offset_seconds: Time offset from contact AOS in seconds
+            schedule_action: If True, also schedule timeline actions for the imaging
+
+        Returns:
+            Dict with imaging preset info, or None if no contact predicted
+        """
+        preset = self.calculate_imaging_preset(offset_seconds)
+        if preset is None:
+            return None
+
+        # Set the imaging target
+        self.set_imaging_target(
+            lat_deg=preset["latitude"],
+            lon_deg=preset["longitude"],
+            alt_m=preset["altitude"],
+        )
+
+        # Optionally schedule timeline actions
+        if schedule_action:
+            target_time = preset["targetTime"]
+
+            # Schedule pointing mode change to IMAGING_TARGET before imaging time
+            # (30 seconds before to allow attitude settling)
+            pointing_time = max(self.sim_time + 1, target_time - 30)
+            try:
+                self.add_timeline_action(
+                    time=pointing_time,
+                    action_type="pointing_mode",
+                    params={"mode": "IMAGING_TARGET"},
+                )
+            except ValueError:
+                pass  # Time already passed
+
+        return preset

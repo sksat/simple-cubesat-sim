@@ -145,13 +145,24 @@ export interface ErrorMessage {
   message: string;
 }
 
+/** Imaging preset result */
+export interface ImagingPreset {
+  latitude: number;
+  longitude: number;
+  altitude: number;
+  targetTime: number;
+  contactStartTime: number;
+  offsetSeconds: number;
+}
+
 /** Timeline event message from server */
 export interface TimelineEventMessage {
   type: 'timeline_event';
-  event: 'action_added' | 'action_removed' | 'contact_refreshed';
+  event: 'action_added' | 'action_removed' | 'contact_refreshed' | 'imaging_preset_set';
   action?: TimelineAction;
   actionId?: string;
   nextContact?: ContactWindow | null;
+  preset?: ImagingPreset;
 }
 
 export type WebSocketMessage = Telemetry | StatusMessage | ErrorMessage | TimelineEventMessage;
@@ -186,13 +197,16 @@ export interface ConfigMessage {
 /** Timeline command from client */
 export interface TimelineMessage {
   type: 'timeline';
-  action: 'add' | 'remove' | 'refresh_contact';
+  action: 'add' | 'remove' | 'refresh_contact' | 'imaging_preset';
   /** For add action */
   time?: number;
   actionType?: TimelineActionType;
   params?: Record<string, unknown>;
   /** For remove action */
   actionId?: string;
+  /** For imaging_preset action */
+  offsetSeconds?: number;
+  scheduleAction?: boolean;
 }
 
 export type ClientMessage = CommandMessage | ModeChangeMessage | ConfigMessage | TimelineMessage;

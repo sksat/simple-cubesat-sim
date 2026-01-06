@@ -16,7 +16,7 @@ function App() {
   const telemetryState = useTelemetry();
   const { history, addTelemetry, clear } = useTelemetryHistory();
   const { history: orbitHistory, addTelemetry: addOrbitTelemetry, clear: clearOrbitHistory } = useOrbitHistory();
-  const { addAction, removeAction, refreshContact } = useTimeline();
+  const { addAction, removeAction, refreshContact, setImagingPreset } = useTimeline();
   const [viewMode, setViewMode] = useState<ViewMode>('attitude');
 
   // Add telemetry to history when received
@@ -51,6 +51,7 @@ function App() {
             onAddAction={addAction}
             onRemoveAction={removeAction}
             onRefreshContact={refreshContact}
+            onSetImagingPreset={setImagingPreset}
           />
         </aside>
 

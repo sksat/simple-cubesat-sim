@@ -16,6 +16,7 @@ interface TimelinePanelProps {
   ) => void;
   onRemoveAction: (actionId: string) => void;
   onRefreshContact: () => void;
+  onSetImagingPreset?: (offsetSeconds: number, scheduleAction: boolean) => void;
 }
 
 /**
@@ -304,8 +305,10 @@ export function TimelinePanel({
   onAddAction,
   onRemoveAction,
   onRefreshContact,
+  onSetImagingPreset,
 }: TimelinePanelProps) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [presetOffset, setPresetOffset] = useState(300); // 5 minutes default
 
   const timeline = telemetry?.timeline;
   const nextContact = timeline?.nextContact ?? null;
@@ -321,6 +324,31 @@ export function TimelinePanel({
         currentTime={currentTime}
         onRefresh={onRefreshContact}
       />
+
+      {onSetImagingPreset && nextContact && (
+        <div className="imaging-preset-section">
+          <div className="preset-row">
+            <label>Imaging at AOS +</label>
+            <input
+              type="number"
+              value={presetOffset}
+              onChange={e => setPresetOffset(Number(e.target.value))}
+              min={0}
+              step={60}
+              className="preset-offset"
+            />
+            <span>s</span>
+            <button
+              onClick={() => onSetImagingPreset(presetOffset, true)}
+              disabled={!isConnected}
+              className="preset-btn"
+              title="Set imaging target to ground track at this time"
+            >
+              Set Preset
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="actions-section">
         <div className="actions-header">

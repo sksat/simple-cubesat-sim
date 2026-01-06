@@ -23,7 +23,7 @@
 |--------|------|-------------|
 | [x] | Contact prediction | 次回コンタクト時刻の計算 |
 | [x] | Action timeline | 衛星アクションのタイムライン概念 |
-| [ ] | Imaging preset | コンタクトからN分後の撮影地点 |
+| [x] | Imaging preset | コンタクトからN分後の撮影地点 |
 
 ### Phase 4: UI Enhancement
 | Status | Task | Description |

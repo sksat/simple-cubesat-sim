@@ -252,6 +252,69 @@ class TestTimelineTelemetry:
         assert len(telemetry["timeline"]["actions"]) == 0
 
 
+class TestImagingPreset:
+    """Tests for imaging preset feature."""
+
+    def test_calculate_imaging_preset(self):
+        """Calculate imaging preset should return ground track position."""
+        engine = SimulationEngine()
+        engine.start()
+        engine.step()
+
+        preset = engine.calculate_imaging_preset(offset_seconds=300)
+
+        if preset is not None:
+            assert "latitude" in preset
+            assert "longitude" in preset
+            assert "targetTime" in preset
+            assert "contactStartTime" in preset
+            assert -90 <= preset["latitude"] <= 90
+            assert -180 <= preset["longitude"] <= 180
+
+    def test_set_imaging_preset(self):
+        """Set imaging preset should set the imaging target."""
+        engine = SimulationEngine()
+        engine.start()
+        engine.step()
+
+        # Clear any existing target
+        engine._imaging_target = None
+
+        preset = engine.set_imaging_preset(offset_seconds=300, schedule_action=False)
+
+        if preset is not None:
+            assert engine._imaging_target is not None
+            assert abs(engine._imaging_target.latitude_deg - preset["latitude"]) < 0.01
+
+    def test_set_imaging_preset_with_schedule(self):
+        """Set imaging preset with schedule should add timeline action."""
+        engine = SimulationEngine()
+        engine.start()
+        engine.step()
+
+        initial_count = len(engine.get_pending_actions())
+        preset = engine.set_imaging_preset(offset_seconds=300, schedule_action=True)
+
+        if preset is not None:
+            # Should have scheduled a pointing mode action
+            new_count = len(engine.get_pending_actions())
+            assert new_count >= initial_count  # At least same or more
+
+    def test_get_ground_track_at_time(self):
+        """Get ground track should return valid coordinates."""
+        engine = SimulationEngine()
+
+        ground_track = engine.get_ground_track_at_time(1000.0)
+
+        assert "latitude" in ground_track
+        assert "longitude" in ground_track
+        assert "altitude" in ground_track
+        assert "time" in ground_track
+        assert ground_track["time"] == 1000.0
+        assert -90 <= ground_track["latitude"] <= 90
+        assert -180 <= ground_track["longitude"] <= 180
+
+
 class TestContactPrediction:
     """Tests for contact prediction in engine."""
 

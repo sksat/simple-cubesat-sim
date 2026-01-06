@@ -28,6 +28,8 @@ interface UseTimelineResult {
     longitude: number,
     altitude?: number
   ) => void;
+  /** Set imaging target from contact + offset (imaging preset) */
+  setImagingPreset: (offsetSeconds?: number, scheduleAction?: boolean) => void;
 }
 
 /**
@@ -77,6 +79,13 @@ export function useTimeline(): UseTimelineResult {
     []
   );
 
+  const setImagingPreset = useCallback(
+    (offsetSeconds: number = 300, scheduleAction: boolean = false) => {
+      telemetryWS.setImagingPreset(offsetSeconds, scheduleAction);
+    },
+    []
+  );
+
   return {
     addAction,
     removeAction,
@@ -84,5 +93,6 @@ export function useTimeline(): UseTimelineResult {
     addControlModeAction,
     addPointingModeAction,
     addImagingTargetAction,
+    setImagingPreset,
   };
 }

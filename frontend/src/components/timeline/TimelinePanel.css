@@ -88,6 +88,61 @@
   font-size: 12px;
 }
 
+/* Imaging Preset Section */
+.imaging-preset-section {
+  background: #252540;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+
+.preset-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.preset-row label {
+  color: #aaa;
+}
+
+.preset-offset {
+  width: 60px;
+  padding: 4px;
+  background: #1a1a2e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #ddd;
+  font-size: 12px;
+  text-align: right;
+}
+
+.preset-row span {
+  color: #888;
+}
+
+.preset-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  font-size: 11px;
+  background: #ff9800;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+}
+
+.preset-btn:hover:not(:disabled) {
+  background: #ffa726;
+}
+
+.preset-btn:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+}
+
 /* Actions Section */
 .actions-section {
   background: #252540;
