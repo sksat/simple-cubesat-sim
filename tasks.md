@@ -21,8 +21,8 @@
 ### Phase 3: Timeline & Contact
 | Status | Task | Description |
 |--------|------|-------------|
-| [ ] | Contact prediction | 次回コンタクト時刻の計算 |
-| [ ] | Action timeline | 衛星アクションのタイムライン概念 |
+| [x] | Contact prediction | 次回コンタクト時刻の計算 |
+| [x] | Action timeline | 衛星アクションのタイムライン概念 |
 | [ ] | Imaging preset | コンタクトからN分後の撮影地点 |
 
 ### Phase 4: UI Enhancement

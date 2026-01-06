@@ -29,6 +29,9 @@ from backend.control.target_direction import (
     is_ground_station_visible,
 )
 from backend.utils.coordinates import dcm_eci_to_ecef_fast_np
+from backend.prediction.contact_predictor import ContactPredictor
+from backend.prediction.models import ContactWindow, TimelineActionType
+from backend.timeline.timeline_manager import TimelineManager
 
 
 # Pointing mode types
@@ -111,6 +114,12 @@ class SimulationEngine:
         self._imaging_target: Optional[ImagingTarget] = None
         self._ground_station_visible = False
 
+        # Timeline and contact prediction
+        self._timeline = TimelineManager()
+        self._contact_predictor: Optional[ContactPredictor] = None
+        self._cached_next_contact: Optional[ContactWindow] = None
+        self._contact_prediction_valid_until: float = 0.0
+
     @property
     def time_warp(self) -> float:
         """Get current time warp factor."""
@@ -155,6 +164,10 @@ class SimulationEngine:
         self.sim_time = 0.0
         self.state = SimulationState.STOPPED
         self.spacecraft.reset()
+        # Clear timeline and contact prediction cache
+        self._timeline.clear()
+        self._cached_next_contact = None
+        self._contact_prediction_valid_until = 0.0
 
     def step(self) -> None:
         """Advance simulation by one time step.
@@ -164,6 +177,9 @@ class SimulationEngine:
         """
         if self.state != SimulationState.RUNNING:
             return
+
+        # Process timeline actions BEFORE physics step
+        self._process_timeline()
 
         # Calculate effective time step
         effective_dt = self.dt * self._time_warp
@@ -196,6 +212,10 @@ class SimulationEngine:
         self._ground_station_visible = is_ground_station_visible(
             sat_pos_eci_m, dcm_eci_to_ecef, self._ground_station
         )
+
+        # Proactively update contact prediction cache (lazy - only if expired)
+        # This ensures get_telemetry() doesn't trigger slow prediction
+        self._update_contact_cache_if_needed()
 
         # Sub-step if effective_dt is too large
         remaining_dt = effective_dt
@@ -406,6 +426,11 @@ class SimulationEngine:
             "orbit": self.get_orbit_position(),
 
             "power": sc_state["power"],
+
+            "timeline": {
+                "nextContact": self._get_next_contact_dict(),
+                "actions": self._timeline.to_dict_list(),
+            },
         }
 
     def _get_sun_direction(self) -> list[float]:
@@ -542,3 +567,149 @@ class SimulationEngine:
         except ValueError:
             # If calculation fails (e.g., parallel vectors), keep previous target
             pass
+
+    # ==================== Timeline Methods ====================
+
+    def _process_timeline(self) -> None:
+        """Execute due timeline actions. Called at start of step()."""
+        due_actions = self._timeline.get_due_actions(self.sim_time)
+
+        for action in due_actions:
+            self._execute_action(action)
+            self._timeline.mark_executed(action.id)
+
+    def _execute_action(self, action) -> None:
+        """Execute a single timeline action.
+
+        Args:
+            action: TimelineAction to execute
+        """
+        if action.action_type == TimelineActionType.CONTROL_MODE:
+            mode = action.params.get("mode", "IDLE")
+            self.set_control_mode(mode)
+        elif action.action_type == TimelineActionType.POINTING_MODE:
+            mode = action.params.get("mode", "MANUAL")
+            self.set_pointing_mode(mode)
+        elif action.action_type == TimelineActionType.IMAGING_TARGET:
+            lat = action.params.get("latitude", 0.0)
+            lon = action.params.get("longitude", 0.0)
+            alt = action.params.get("altitude", 0.0)
+            self.set_imaging_target(lat, lon, alt)
+
+    def add_timeline_action(
+        self,
+        time: float,
+        action_type: str,
+        params: dict,
+    ) -> dict:
+        """Add a scheduled action to the timeline.
+
+        Args:
+            time: Execution time (simulation seconds)
+            action_type: Type of action ("control_mode", "pointing_mode", "imaging_target")
+            params: Action parameters
+
+        Returns:
+            Created action as dict
+
+        Raises:
+            ValueError: If time is in the past
+        """
+        action = self._timeline.add_action(
+            time=time,
+            action_type=action_type,
+            params=params,
+            current_sim_time=self.sim_time,
+        )
+        return action.to_dict()
+
+    def remove_timeline_action(self, action_id: str) -> bool:
+        """Remove a scheduled action.
+
+        Args:
+            action_id: The action ID to remove
+
+        Returns:
+            True if action was found and removed
+        """
+        return self._timeline.remove_action(action_id)
+
+    def get_pending_actions(self) -> list[dict]:
+        """Get all pending timeline actions.
+
+        Returns:
+            List of pending actions as dicts
+        """
+        return self._timeline.to_dict_list()
+
+    # ==================== Contact Prediction Methods ====================
+
+    def get_next_contact(self, force_refresh: bool = False) -> Optional[ContactWindow]:
+        """Get next contact window (uses cache if valid).
+
+        Args:
+            force_refresh: Force re-prediction even if cache is valid
+
+        Returns:
+            Next ContactWindow or None if no contact predicted
+        """
+        if self._contact_predictor is None:
+            self._contact_predictor = ContactPredictor(
+                orbit_propagator=self._orbit_propagator,
+                ground_station=self._ground_station,
+                sim_epoch=self._sim_epoch,
+            )
+
+        # Invalidate cache if needed
+        # Note: _contact_prediction_valid_until == 0 means never predicted
+        cache_expired = self.sim_time > self._contact_prediction_valid_until
+        never_predicted = self._contact_prediction_valid_until == 0.0
+
+        if force_refresh or never_predicted or cache_expired:
+            self._cached_next_contact = self._contact_predictor.predict_next_contact(
+                self.sim_time
+            )
+            if self._cached_next_contact:
+                # Cache valid until contact ends
+                self._contact_prediction_valid_until = self._cached_next_contact.end_time
+            else:
+                # Re-predict in 5 minutes if no contact found
+                self._contact_prediction_valid_until = self.sim_time + 300
+
+        return self._cached_next_contact
+
+    def _get_next_contact_dict(self) -> Optional[dict]:
+        """Get next contact as dict for telemetry.
+
+        Returns:
+            Contact window as dict, or None
+        """
+        contact = self.get_next_contact()
+        if contact:
+            return contact.to_dict()
+        return None
+
+    def refresh_contact_prediction(self) -> Optional[dict]:
+        """Force refresh contact prediction and return result.
+
+        Returns:
+            New contact prediction as dict, or None
+        """
+        contact = self.get_next_contact(force_refresh=True)
+        if contact:
+            return contact.to_dict()
+        return None
+
+    def _update_contact_cache_if_needed(self) -> None:
+        """Update contact prediction cache if expired.
+
+        Called during step() to ensure get_telemetry() is fast.
+        Only does prediction if cache is expired.
+        """
+        # Check if cache needs updating
+        if (
+            self._cached_next_contact is None
+            or self.sim_time > self._contact_prediction_valid_until
+        ):
+            # Cache expired, trigger update
+            self.get_next_contact()

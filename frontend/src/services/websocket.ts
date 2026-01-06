@@ -9,6 +9,7 @@ import type {
   ControlMode,
   PointingMode,
   ImagingTarget,
+  TimelineActionType,
 } from '../types/telemetry';
 
 type MessageHandler = (message: WebSocketMessage) => void;
@@ -123,6 +124,46 @@ export class TelemetryWebSocket {
    */
   setTimeWarp(timeWarp: number): void {
     this.send({ type: 'config', timeWarp });
+  }
+
+  // ==================== Timeline Methods ====================
+
+  /**
+   * Add a scheduled action to the timeline.
+   */
+  addTimelineAction(
+    time: number,
+    actionType: TimelineActionType,
+    params: Record<string, unknown>
+  ): void {
+    this.send({
+      type: 'timeline',
+      action: 'add',
+      time,
+      actionType,
+      params,
+    });
+  }
+
+  /**
+   * Remove a scheduled action from the timeline.
+   */
+  removeTimelineAction(actionId: string): void {
+    this.send({
+      type: 'timeline',
+      action: 'remove',
+      actionId,
+    });
+  }
+
+  /**
+   * Force refresh contact prediction.
+   */
+  refreshContactPrediction(): void {
+    this.send({
+      type: 'timeline',
+      action: 'refresh_contact',
+    });
   }
 
   /**

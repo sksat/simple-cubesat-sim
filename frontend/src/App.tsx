@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { SimulationControls } from './components/SimulationControls'
+import { TimelinePanel } from './components/timeline'
 import { SatelliteView } from './components/visualization/SatelliteView'
 import { GlobeView } from './components/visualization/GlobeView'
 import { TelemetryCharts } from './components/charts/TelemetryCharts'
 import { useTelemetry } from './hooks/useTelemetry'
 import { useTelemetryHistory } from './hooks/useTelemetryHistory'
 import { useOrbitHistory } from './hooks/useOrbitHistory'
+import { useTimeline } from './hooks/useTimeline'
 import './App.css'
 
 type ViewMode = 'attitude' | 'orbit';
@@ -14,6 +16,7 @@ function App() {
   const telemetryState = useTelemetry();
   const { history, addTelemetry, clear } = useTelemetryHistory();
   const { history: orbitHistory, addTelemetry: addOrbitTelemetry, clear: clearOrbitHistory } = useOrbitHistory();
+  const { addAction, removeAction, refreshContact } = useTimeline();
   const [viewMode, setViewMode] = useState<ViewMode>('attitude');
 
   // Add telemetry to history when received
@@ -42,6 +45,13 @@ function App() {
       <main className="app-main">
         <aside className="sidebar">
           <SimulationControls telemetryState={telemetryState} />
+          <TimelinePanel
+            telemetry={telemetryState.telemetry}
+            isConnected={telemetryState.isConnected}
+            onAddAction={addAction}
+            onRemoveAction={removeAction}
+            onRefreshContact={refreshContact}
+          />
         </aside>
 
         <section className="visualization">

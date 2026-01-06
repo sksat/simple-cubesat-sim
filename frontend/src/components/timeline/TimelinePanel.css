@@ -1,0 +1,262 @@
+/**
+ * Timeline panel styles.
+ */
+
+.timeline-panel {
+  padding: 10px;
+  background: #1a1a2e;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.timeline-panel h3 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #888;
+  border-bottom: 1px solid #333;
+  padding-bottom: 5px;
+}
+
+/* Contact Display */
+.contact-display {
+  background: #252540;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+
+.contact-display.in-contact {
+  border: 1px solid #4caf50;
+}
+
+.contact-display.no-contact {
+  opacity: 0.7;
+}
+
+.contact-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.contact-title {
+  font-weight: bold;
+  color: #ddd;
+}
+
+.refresh-btn {
+  padding: 2px 6px;
+  font-size: 11px;
+  background: #333;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #aaa;
+  cursor: pointer;
+}
+
+.refresh-btn:hover {
+  background: #444;
+  color: #fff;
+}
+
+.contact-status {
+  margin: 0;
+  font-size: 12px;
+}
+
+.contact-status.active {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.contact-status.pending {
+  color: #ff9800;
+}
+
+.contact-details {
+  display: flex;
+  gap: 15px;
+  font-size: 11px;
+  color: #888;
+  margin-top: 5px;
+}
+
+.no-contact-text {
+  margin: 0;
+  color: #666;
+  font-size: 12px;
+}
+
+/* Actions Section */
+.actions-section {
+  background: #252540;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.actions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #aaa;
+}
+
+.add-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  background: #3f51b5;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+}
+
+.add-btn:hover:not(:disabled) {
+  background: #5c6bc0;
+}
+
+.add-btn:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.no-actions {
+  margin: 0;
+  color: #666;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Action List */
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.action-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1a1a2e;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+.action-info {
+  display: flex;
+  gap: 8px;
+}
+
+.action-type {
+  color: #888;
+}
+
+.action-params {
+  color: #ddd;
+  font-weight: bold;
+}
+
+.action-timing {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.action-time {
+  color: #ff9800;
+  font-family: monospace;
+}
+
+.remove-btn {
+  padding: 0 5px;
+  font-size: 12px;
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+}
+
+.remove-btn:hover {
+  color: #f44336;
+}
+
+/* Add Action Form */
+.add-action-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.form-row label {
+  color: #888;
+  min-width: 60px;
+}
+
+.form-row input[type="checkbox"] {
+  margin-right: 5px;
+}
+
+.form-row select,
+.form-row input[type="number"] {
+  flex: 1;
+  padding: 4px;
+  background: #1a1a2e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #ddd;
+  font-size: 12px;
+}
+
+.time-preview {
+  color: #ff9800;
+  font-family: monospace;
+  margin-left: auto;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 5px;
+}
+
+.form-buttons button {
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.form-buttons button[type="submit"] {
+  background: #4caf50;
+  border: none;
+  color: white;
+}
+
+.form-buttons button[type="submit"]:hover {
+  background: #66bb6a;
+}
+
+.form-buttons button[type="button"] {
+  background: #333;
+  border: 1px solid #444;
+  color: #aaa;
+}
+
+.form-buttons button[type="button"]:hover {
+  background: #444;
+  color: #fff;
+}

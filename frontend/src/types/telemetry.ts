@@ -60,6 +60,48 @@ export interface PowerState {
   netPower: number;
 }
 
+// ==================== Timeline Types ====================
+
+/** Ground station contact window */
+export interface ContactWindow {
+  groundStationName: string;
+  /** AOS time in simulation seconds */
+  startTime: number;
+  /** LOS time in simulation seconds */
+  endTime: number;
+  /** Maximum elevation angle in degrees */
+  maxElevation: number;
+  /** Time of maximum elevation in simulation seconds */
+  maxElevationTime: number;
+  /** Azimuth at AOS in degrees */
+  aosAzimuth: number;
+  /** Azimuth at LOS in degrees */
+  losAzimuth: number;
+  /** Contact duration in seconds */
+  duration: number;
+}
+
+/** Types of timeline actions */
+export type TimelineActionType = 'control_mode' | 'pointing_mode' | 'imaging_target';
+
+/** Scheduled timeline action */
+export interface TimelineAction {
+  id: string;
+  /** Execution time in simulation seconds */
+  time: number;
+  actionType: TimelineActionType;
+  params: Record<string, unknown>;
+  executed: boolean;
+  /** When the action was created (sim time) */
+  createdAt: number;
+}
+
+/** Timeline state in telemetry */
+export interface TimelineState {
+  nextContact: ContactWindow | null;
+  actions: TimelineAction[];
+}
+
 export interface OrbitState {
   latitude: number;
   longitude: number;
@@ -85,6 +127,7 @@ export interface Telemetry {
   environment: EnvironmentState;
   orbit?: OrbitState;
   power?: PowerState;
+  timeline?: TimelineState;
 }
 
 export type SimulationState = 'STOPPED' | 'RUNNING' | 'PAUSED';
@@ -102,7 +145,16 @@ export interface ErrorMessage {
   message: string;
 }
 
-export type WebSocketMessage = Telemetry | StatusMessage | ErrorMessage;
+/** Timeline event message from server */
+export interface TimelineEventMessage {
+  type: 'timeline_event';
+  event: 'action_added' | 'action_removed' | 'contact_refreshed';
+  action?: TimelineAction;
+  actionId?: string;
+  nextContact?: ContactWindow | null;
+}
+
+export type WebSocketMessage = Telemetry | StatusMessage | ErrorMessage | TimelineEventMessage;
 
 // Commands
 export interface CommandMessage {
@@ -131,4 +183,16 @@ export interface ConfigMessage {
   timeWarp?: number;
 }
 
-export type ClientMessage = CommandMessage | ModeChangeMessage | ConfigMessage;
+/** Timeline command from client */
+export interface TimelineMessage {
+  type: 'timeline';
+  action: 'add' | 'remove' | 'refresh_contact';
+  /** For add action */
+  time?: number;
+  actionType?: TimelineActionType;
+  params?: Record<string, unknown>;
+  /** For remove action */
+  actionId?: string;
+}
+
+export type ClientMessage = CommandMessage | ModeChangeMessage | ConfigMessage | TimelineMessage;

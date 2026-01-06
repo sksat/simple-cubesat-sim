@@ -206,6 +206,8 @@ async def handle_message(
             await handle_mode_change(message, engine, websocket)
         elif msg_type == "config":
             await handle_config(message, engine, websocket)
+        elif msg_type == "timeline":
+            await handle_timeline(message, engine, websocket)
         else:
             await send_error(websocket, f"Unknown message type: {msg_type}")
 
@@ -291,6 +293,68 @@ async def handle_config(
             return
 
     await send_status(websocket, engine)
+
+
+async def handle_timeline(
+    message: dict,
+    engine: SimulationEngine,
+    websocket: WebSocket,
+) -> None:
+    """Handle timeline-related messages.
+
+    Message formats:
+        Add action:
+            {"type": "timeline", "action": "add", "time": 1234.5,
+             "actionType": "control_mode", "params": {"mode": "POINTING"}}
+        Remove action:
+            {"type": "timeline", "action": "remove", "actionId": "uuid"}
+        Refresh contact:
+            {"type": "timeline", "action": "refresh_contact"}
+    """
+    action = message.get("action")
+
+    if action == "add":
+        try:
+            result = engine.add_timeline_action(
+                time=message["time"],
+                action_type=message["actionType"],
+                params=message.get("params", {}),
+            )
+            await websocket.send_json({
+                "type": "timeline_event",
+                "event": "action_added",
+                "action": result,
+            })
+        except ValueError as e:
+            await send_error(websocket, str(e))
+        except KeyError as e:
+            await send_error(websocket, f"Missing required field: {e}")
+
+    elif action == "remove":
+        action_id = message.get("actionId")
+        if not action_id:
+            await send_error(websocket, "Missing actionId")
+            return
+
+        if engine.remove_timeline_action(action_id):
+            await websocket.send_json({
+                "type": "timeline_event",
+                "event": "action_removed",
+                "actionId": action_id,
+            })
+        else:
+            await send_error(websocket, "Action not found")
+
+    elif action == "refresh_contact":
+        contact = engine.refresh_contact_prediction()
+        await websocket.send_json({
+            "type": "timeline_event",
+            "event": "contact_refreshed",
+            "nextContact": contact,
+        })
+
+    else:
+        await send_error(websocket, f"Unknown timeline action: {action}")
 
 
 async def send_status(websocket: WebSocket, engine: SimulationEngine) -> None:
