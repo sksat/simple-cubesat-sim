@@ -10,18 +10,17 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars, PerspectiveCamera, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Telemetry } from '../../types/telemetry';
+import type { OrbitHistoryPoint } from '../../hooks/useOrbitHistory';
+import { CubeSatModel } from './CubeSatModel';
 
 interface GlobeViewProps {
   telemetry: Telemetry | null;
+  orbitHistory: OrbitHistoryPoint[];
 }
 
-export function GlobeView({ telemetry }: GlobeViewProps) {
+export function GlobeView({ telemetry, orbitHistory }: GlobeViewProps) {
   // Extract orbit data from telemetry
   const orbit = telemetry?.orbit;
-
-  // Default orbit parameters (600km SSO) used when no telemetry
-  const orbitAltitude = orbit?.altitude ?? 600;
-  const orbitInclination = orbit?.inclination ?? 97.8;
 
   return (
     <div className="globe-view" style={{ width: '100%', height: '100%', background: '#000' }}>
@@ -47,17 +46,18 @@ export function GlobeView({ telemetry }: GlobeViewProps) {
         {/* Earth */}
         <Earth />
 
-        {/* Satellite marker */}
-        {orbit && (
+        {/* Satellite with CubeSat model */}
+        {orbit && telemetry && (
           <SatelliteMarker
             latitude={orbit.latitude}
             longitude={orbit.longitude}
             altitude={orbit.altitude}
+            quaternion={telemetry.attitude.quaternion}
           />
         )}
 
-        {/* Orbit path - uses parameters from telemetry */}
-        <OrbitPath altitude={orbitAltitude} inclination={orbitInclination} />
+        {/* Ground track from orbit history */}
+        <GroundTrack history={orbitHistory} />
       </Canvas>
 
       {/* Orbit info overlay */}
@@ -113,9 +113,12 @@ interface SatelliteMarkerProps {
   latitude: number;
   longitude: number;
   altitude: number;
+  quaternion: [number, number, number, number];
 }
 
-function SatelliteMarker({ latitude, longitude, altitude }: SatelliteMarkerProps) {
+function SatelliteMarker({ latitude, longitude, altitude, quaternion }: SatelliteMarkerProps) {
+  const groupRef = useRef<THREE.Group>(null);
+
   // Convert lat/lon/alt to 3D position
   // Earth radius = 1, altitude in km scaled to scene
   const earthRadius = 1;
@@ -134,20 +137,47 @@ function SatelliteMarker({ latitude, longitude, altitude }: SatelliteMarkerProps
   const groundY = earthRadius * Math.sin(latRad);
   const groundZ = earthRadius * Math.cos(latRad) * Math.cos(lonRad);
 
+  // Compute local frame transformation
+  // The satellite's local "up" should point radially outward
+  // We need to rotate from inertial frame (Z-up) to local frame (radial-up)
+  const localFrameQuaternion = useMemo(() => {
+    // Radial direction (local up)
+    const radial = new THREE.Vector3(x, y, z).normalize();
+
+    // We want to find the rotation that transforms (0, 0, 1) to radial
+    // Using quaternion from rotation axis and angle
+    const inertialUp = new THREE.Vector3(0, 0, 1);
+
+    const q = new THREE.Quaternion();
+    q.setFromUnitVectors(inertialUp, radial);
+
+    return q;
+  }, [x, y, z]);
+
+  // Apply combined rotation: local frame + attitude
+  useFrame(() => {
+    if (groupRef.current) {
+      // Attitude quaternion from telemetry
+      const attitudeQ = new THREE.Quaternion(quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
+
+      // Combined: first local frame rotation, then attitude
+      // Final = localFrame * attitude
+      const combined = localFrameQuaternion.clone().multiply(attitudeQ);
+
+      groupRef.current.quaternion.copy(combined);
+    }
+  });
+
+  // Scale factor for the satellite model in globe view (much smaller than attitude view)
+  const satelliteScale = 0.008;
+
   return (
     <group>
-      {/* Satellite at orbital altitude */}
-      <group position={[x, y, z]}>
-        {/* Satellite body */}
-        <mesh>
-          <boxGeometry args={[0.03, 0.03, 0.05]} />
-          <meshBasicMaterial color="#ff4444" />
-        </mesh>
-        {/* Glow effect */}
-        <mesh>
-          <sphereGeometry args={[0.06, 16, 16]} />
-          <meshBasicMaterial color="#ff4444" transparent opacity={0.4} />
-        </mesh>
+      {/* Satellite at orbital altitude with CubeSat model */}
+      <group position={[x, y, z]} ref={groupRef}>
+        <group scale={[satelliteScale, satelliteScale, satelliteScale]}>
+          <CubeSatModel quaternion={[0, 0, 0, 1]} />
+        </group>
       </group>
       {/* Ground track line from satellite to Earth surface */}
       <Line
@@ -159,45 +189,78 @@ function SatelliteMarker({ latitude, longitude, altitude }: SatelliteMarkerProps
       />
       {/* Ground marker */}
       <mesh position={[groundX, groundY, groundZ]}>
-        <sphereGeometry args={[0.02, 8, 8]} />
+        <sphereGeometry args={[0.015, 8, 8]} />
         <meshBasicMaterial color="#ffaa44" />
       </mesh>
     </group>
   );
 }
 
-interface OrbitPathProps {
-  altitude: number;
-  inclination: number;
+interface GroundTrackProps {
+  history: OrbitHistoryPoint[];
 }
 
-function OrbitPath({ altitude, inclination }: OrbitPathProps) {
-  const points = useMemo(() => {
-    const earthRadius = 1;
-    const altitudeScale = altitude / 6371;
-    const r = earthRadius + altitudeScale;
-    const incRad = (inclination * Math.PI) / 180;
+function GroundTrack({ history }: GroundTrackProps) {
+  // Convert orbit history to 3D points
+  // Need to handle longitude discontinuities (wrap-around at ±180°)
+  const segments = useMemo(() => {
+    if (history.length < 2) return [];
 
-    const pts: [number, number, number][] = [];
-    for (let i = 0; i <= 360; i += 2) {
-      const theta = (i * Math.PI) / 180;
-      // Basic inclined circular orbit
-      const x = r * Math.sin(theta);
-      const y = r * Math.cos(theta) * Math.sin(incRad);
-      const z = r * Math.cos(theta) * Math.cos(incRad);
-      pts.push([x, y, z]);
+    const earthRadius = 1;
+    const allSegments: [number, number, number][][] = [];
+    let currentSegment: [number, number, number][] = [];
+
+    for (let i = 0; i < history.length; i++) {
+      const point = history[i];
+      const altitudeScale = point.altitude / 6371;
+      const r = earthRadius + altitudeScale;
+
+      const latRad = (point.latitude * Math.PI) / 180;
+      const lonRad = (point.longitude * Math.PI) / 180;
+
+      const x = r * Math.cos(latRad) * Math.sin(lonRad);
+      const y = r * Math.sin(latRad);
+      const z = r * Math.cos(latRad) * Math.cos(lonRad);
+
+      // Check for longitude discontinuity (wrap-around)
+      if (i > 0) {
+        const prevLon = history[i - 1].longitude;
+        const currLon = point.longitude;
+        // If longitude jumps by more than 180°, start a new segment
+        if (Math.abs(currLon - prevLon) > 180) {
+          if (currentSegment.length >= 2) {
+            allSegments.push(currentSegment);
+          }
+          currentSegment = [];
+        }
+      }
+
+      currentSegment.push([x, y, z]);
     }
-    return pts;
-  }, [altitude, inclination]);
+
+    // Add final segment
+    if (currentSegment.length >= 2) {
+      allSegments.push(currentSegment);
+    }
+
+    return allSegments;
+  }, [history]);
+
+  if (segments.length === 0) return null;
 
   return (
-    <Line
-      points={points}
-      color="#4fc3f7"
-      lineWidth={1}
-      transparent
-      opacity={0.6}
-    />
+    <group>
+      {segments.map((segment, i) => (
+        <Line
+          key={i}
+          points={segment}
+          color="#4fc3f7"
+          lineWidth={2}
+          transparent
+          opacity={0.7}
+        />
+      ))}
+    </group>
   );
 }
 
