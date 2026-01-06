@@ -276,7 +276,19 @@ class SimulationEngine:
 
             "environment": {
                 "magneticField": self._magnetic_field_inertial.tolist(),
+                "sunDirection": self._get_sun_direction(),
             },
 
             "orbit": self.get_orbit_position(),
         }
+
+    def _get_sun_direction(self) -> list[float]:
+        """Get current sun direction in Three.js scene coordinates.
+
+        Returns:
+            [x, y, z] unit vector pointing toward the Sun
+        """
+        from backend.utils.coordinates import get_sun_direction_threejs
+
+        sun_dir = get_sun_direction_threejs()
+        return list(sun_dir)

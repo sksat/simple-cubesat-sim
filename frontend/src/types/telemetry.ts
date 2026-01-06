@@ -35,6 +35,8 @@ export interface ControlState {
 
 export interface EnvironmentState {
   magneticField: [number, number, number];
+  /** Sun direction vector in Three.js scene coordinates (unit vector) */
+  sunDirection: [number, number, number];
 }
 
 export interface OrbitState {

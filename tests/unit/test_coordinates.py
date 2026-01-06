@@ -1,10 +1,13 @@
 """Tests for coordinate transformation utilities."""
 
 import pytest
+from astropy.time import Time
 from backend.utils.coordinates import (
     geodetic_to_ecef,
     ecef_to_threejs,
     geodetic_to_threejs,
+    get_sun_direction_ecef,
+    get_sun_direction_threejs,
     EARTH_RADIUS_KM,
 )
 
@@ -119,3 +122,40 @@ class TestGeodeticToThreejs:
         assert 1.09 < r < 1.10
         # Y should be large (high latitude)
         assert y > 0.9
+
+
+class TestSunDirection:
+    """Tests for sun direction functions."""
+
+    def test_sun_direction_ecef_is_unit_vector(self):
+        """Sun direction should be a unit vector."""
+        x, y, z = get_sun_direction_ecef()
+        r = (x**2 + y**2 + z**2) ** 0.5
+        assert abs(r - 1.0) < 0.001
+
+    def test_sun_direction_threejs_is_unit_vector(self):
+        """Sun direction in Three.js should be a unit vector."""
+        x, y, z = get_sun_direction_threejs()
+        r = (x**2 + y**2 + z**2) ** 0.5
+        assert abs(r - 1.0) < 0.001
+
+    def test_sun_direction_with_specific_time(self):
+        """Sun direction should work with a specific time."""
+        # Summer solstice 2024 - sun should be in northern hemisphere
+        time = Time("2024-06-21T12:00:00", scale="utc")
+        x, y, z = get_sun_direction_ecef(time)
+        r = (x**2 + y**2 + z**2) ** 0.5
+        assert abs(r - 1.0) < 0.001
+        # Sun should be above equatorial plane (z > 0) at summer solstice
+        assert z > 0
+
+    def test_sun_direction_coordinate_mapping(self):
+        """ECEF to Three.js sun direction mapping should be consistent."""
+        time = Time("2024-03-20T12:00:00", scale="utc")
+        ecef_x, ecef_y, ecef_z = get_sun_direction_ecef(time)
+        three_x, three_y, three_z = get_sun_direction_threejs(time)
+
+        # Verify mapping: Scene X = ECEF X, Scene Y = ECEF Z, Scene Z = ECEF Y
+        assert abs(three_x - ecef_x) < 0.001
+        assert abs(three_y - ecef_z) < 0.001
+        assert abs(three_z - ecef_y) < 0.001

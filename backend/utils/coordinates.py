@@ -12,7 +12,12 @@ Coordinate Frames:
 """
 
 from astropy import units as u
-from astropy.coordinates import EarthLocation
+from astropy.coordinates import EarthLocation, get_sun, ITRS
+from astropy.time import Time
+from astropy.utils.iers import conf as iers_conf
+
+# Use built-in IERS data to avoid network downloads and timeouts
+iers_conf.auto_download = False
 
 
 def geodetic_to_ecef(
@@ -106,6 +111,51 @@ def geodetic_to_threejs(
     """
     x_ecef, y_ecef, z_ecef = geodetic_to_ecef(lat_deg, lon_deg, alt_km)
     return ecef_to_threejs(x_ecef, y_ecef, z_ecef, earth_radius_km)
+
+
+def get_sun_direction_ecef(time: Time | None = None) -> tuple[float, float, float]:
+    """Get the Sun direction vector in ECEF coordinates.
+
+    Args:
+        time: Astropy Time object. If None, uses current UTC time.
+
+    Returns:
+        (x, y, z) unit vector pointing toward the Sun in ECEF frame
+    """
+    if time is None:
+        time = Time.now()
+
+    # Get Sun position in geocentric coordinates (GCRS)
+    sun_gcrs = get_sun(time)
+
+    # Transform to ECEF (ITRS - International Terrestrial Reference System)
+    sun_itrs = sun_gcrs.transform_to(ITRS(obstime=time))
+
+    # Get Cartesian coordinates
+    x = sun_itrs.cartesian.x.value
+    y = sun_itrs.cartesian.y.value
+    z = sun_itrs.cartesian.z.value
+
+    # Normalize to unit vector
+    r = (x**2 + y**2 + z**2) ** 0.5
+
+    return (x / r, y / r, z / r)
+
+
+def get_sun_direction_threejs(time: Time | None = None) -> tuple[float, float, float]:
+    """Get the Sun direction vector in Three.js scene coordinates.
+
+    Args:
+        time: Astropy Time object. If None, uses current UTC time.
+
+    Returns:
+        (x, y, z) unit vector pointing toward the Sun in Three.js scene frame
+    """
+    x_ecef, y_ecef, z_ecef = get_sun_direction_ecef(time)
+
+    # Convert to Three.js coordinates (same mapping as ecef_to_threejs but for unit vector)
+    # Scene X = ECEF X, Scene Y = ECEF Z (North), Scene Z = ECEF Y (East)
+    return (x_ecef, z_ecef, y_ecef)
 
 
 # Constants
