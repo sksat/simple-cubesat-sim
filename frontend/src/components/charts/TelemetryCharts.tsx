@@ -117,10 +117,35 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
     { x: timestamps, y: rwZ, name: 'RW-Z', type: 'scatter', mode: 'lines', line: { color: CHART_COLORS.z, width: 1 } },
   ];
 
+  // RW max speed: 900 rad/s = 8594.37 RPM
+  const RW_MAX_RPM = 900 * 60 / (2 * Math.PI);
+
   const rwSpeedLayout: Partial<Layout> = {
     ...DARK_LAYOUT,
     title: { text: 'Reaction Wheel Speed', font: { size: 12 } },
-    yaxis: { ...DARK_LAYOUT.yaxis, title: { text: 'RPM', font: { size: 10 } } },
+    yaxis: {
+      ...DARK_LAYOUT.yaxis,
+      title: { text: 'RPM', font: { size: 10 } },
+      range: [-9000, 9000],  // Fixed range with margin above max speed
+    },
+    shapes: [
+      {
+        type: 'line',
+        x0: timestamps[0],
+        x1: timestamps[timestamps.length - 1],
+        y0: RW_MAX_RPM,
+        y1: RW_MAX_RPM,
+        line: { color: '#888', width: 1, dash: 'dash' },
+      },
+      {
+        type: 'line',
+        x0: timestamps[0],
+        x1: timestamps[timestamps.length - 1],
+        y0: -RW_MAX_RPM,
+        y1: -RW_MAX_RPM,
+        line: { color: '#888', width: 1, dash: 'dash' },
+      },
+    ],
   };
 
   return (

@@ -232,4 +232,13 @@ export interface TimelineMessage {
   scheduleAction?: boolean;
 }
 
-export type ClientMessage = CommandMessage | ModeChangeMessage | ConfigMessage | TimelineMessage;
+/** Pointing configuration message */
+export interface PointingConfigMessage {
+  type: 'pointing_config';
+  mainTarget: TargetDirection;
+  mainBodyAxis: BodyAxis;
+  subTarget: TargetDirection;
+  subBodyAxis: BodyAxis;
+}
+
+export type ClientMessage = CommandMessage | ModeChangeMessage | ConfigMessage | TimelineMessage | PointingConfigMessage;

@@ -5,7 +5,7 @@
  * Uses pure Three.js to avoid WebGPU compatibility issues with globe.gl.
  */
 
-import { useRef, useMemo, useState, useEffect } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars, PerspectiveCamera, Line } from '@react-three/drei';
 import * as THREE from 'three';
