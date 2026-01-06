@@ -5,7 +5,7 @@
  * Uses pure Three.js to avoid WebGPU compatibility issues with globe.gl.
  */
 
-import { useRef, useMemo, useState } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars, PerspectiveCamera, Line } from '@react-three/drei';
 import * as THREE from 'three';
@@ -13,6 +13,16 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Telemetry } from '../../types/telemetry';
 import type { OrbitHistoryPoint } from '../../hooks/useOrbitHistory';
 import { CubeSatModel } from './CubeSatModel';
+
+/** Camera offset in orbit frame (spherical coordinates) */
+interface OrbitFrameOffset {
+  /** Azimuth angle around zenith axis (radians) */
+  theta: number;
+  /** Elevation angle from orbit plane (radians) */
+  phi: number;
+  /** Distance from satellite */
+  r: number;
+}
 
 type ViewCenter = 'earth' | 'satellite';
 
@@ -39,9 +49,11 @@ export function GlobeView({ telemetry, orbitHistory }: GlobeViewProps) {
           hasTelemetry={!!telemetry}
         />
 
-        {/* Lighting */}
-        <ambientLight intensity={0.3} />
-        <directionalLight position={[5, 3, 5]} intensity={1.5} />
+        {/* Lighting - bright enough to see Earth and satellite from all angles */}
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[5, 3, 5]} intensity={1.8} />
+        <directionalLight position={[-5, -2, -5]} intensity={0.8} />
+        <directionalLight position={[0, 5, -5]} intensity={0.6} />
 
         {/* Space background */}
         <Stars radius={100} depth={50} count={3000} factor={4} fade />
@@ -79,48 +91,131 @@ interface CameraControllerProps {
 
 function CameraController({ viewCenter, satellitePosition, hasTelemetry }: CameraControllerProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
 
-  // Update camera target based on view center
-  useFrame(() => {
-    if (!controlsRef.current) return;
-
-    const controls = controlsRef.current;
-
-    if (viewCenter === 'satellite' && hasTelemetry) {
-      // Smoothly interpolate target to satellite position
-      const targetPos = new THREE.Vector3(...satellitePosition);
-      controls.target.lerp(targetPos, 0.1);
-
-      // Adjust camera to maintain relative distance from satellite
-      const currentDistance = camera.position.distanceTo(controls.target);
-      if (currentDistance > 0.5) {
-        // Gradually zoom in when switching to satellite view
-        const direction = camera.position.clone().sub(controls.target).normalize();
-        const targetDistance = Math.max(0.15, currentDistance * 0.98);
-        camera.position.copy(controls.target).add(direction.multiplyScalar(targetDistance));
-      }
-    } else {
-      // Smoothly return to Earth center
-      controls.target.lerp(new THREE.Vector3(0, 0, 0), 0.1);
-    }
-
-    controls.update();
+  // Camera offset in orbit frame (for satellite-following view)
+  // theta: azimuth around zenith axis
+  // phi: elevation from orbit plane (0 = in plane, positive = above)
+  // r: distance from satellite
+  const orbitOffset = useRef<OrbitFrameOffset>({
+    theta: Math.PI / 4,   // 45° azimuth (behind and to the side)
+    phi: Math.PI / 6,     // 30° elevation (slightly above orbit plane)
+    r: 0.2                // distance from satellite
   });
 
-  // Dynamic distance limits based on view center
-  const minDistance = viewCenter === 'satellite' ? 0.05 : 1.5;
-  const maxDistance = viewCenter === 'satellite' ? 2 : 10;
+  // Mouse drag state for satellite view
+  const isDragging = useRef(false);
+  const prevMouse = useRef({ x: 0, y: 0 });
 
+  // Custom mouse handlers for satellite-following view
+  useEffect(() => {
+    if (viewCenter !== 'satellite') return;
+
+    const canvas = gl.domElement;
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button === 0) { // Left click only
+        isDragging.current = true;
+        prevMouse.current = { x: e.clientX, y: e.clientY };
+      }
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+
+      const dx = e.clientX - prevMouse.current.x;
+      const dy = e.clientY - prevMouse.current.y;
+      prevMouse.current = { x: e.clientX, y: e.clientY };
+
+      // Update orbit frame offset
+      orbitOffset.current.theta += dx * 0.005;
+      orbitOffset.current.phi = Math.max(
+        -Math.PI / 2 + 0.1,
+        Math.min(Math.PI / 2 - 0.1, orbitOffset.current.phi + dy * 0.005)
+      );
+    };
+
+    const onMouseUp = () => {
+      isDragging.current = false;
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      orbitOffset.current.r = Math.max(
+        0.03,
+        Math.min(2, orbitOffset.current.r * (1 + e.deltaY * 0.001))
+      );
+    };
+
+    canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('mouseup', onMouseUp);
+    canvas.addEventListener('mouseleave', onMouseUp);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+
+    return () => {
+      canvas.removeEventListener('mousedown', onMouseDown);
+      canvas.removeEventListener('mousemove', onMouseMove);
+      canvas.removeEventListener('mouseup', onMouseUp);
+      canvas.removeEventListener('mouseleave', onMouseUp);
+      canvas.removeEventListener('wheel', onWheel);
+    };
+  }, [viewCenter, gl.domElement]);
+
+  useFrame(() => {
+    if (viewCenter === 'satellite' && hasTelemetry) {
+      // Satellite-following camera in orbit frame (LVLH-like)
+      const satPos = new THREE.Vector3(...satellitePosition);
+
+      // Build orbit coordinate frame:
+      // - Nadir: toward Earth center (down)
+      // - Zenith: away from Earth (up)
+      // - Tangent: perpendicular to nadir, roughly in orbit plane
+      const nadir = satPos.clone().negate().normalize();
+      const zenith = nadir.clone().negate();
+
+      // Use scene Y (North pole) to define tangent direction
+      const sceneUp = new THREE.Vector3(0, 1, 0);
+      const tangent = new THREE.Vector3().crossVectors(sceneUp, nadir).normalize();
+
+      // Handle polar case (nadir parallel to sceneUp)
+      if (tangent.lengthSq() < 0.001) {
+        tangent.set(1, 0, 0);
+      }
+
+      // Right vector (perpendicular to both tangent and zenith)
+      const right = new THREE.Vector3().crossVectors(tangent, zenith).normalize();
+
+      // Convert spherical offset to camera position in orbit frame
+      const { theta, phi, r } = orbitOffset.current;
+      const offset = new THREE.Vector3()
+        .addScaledVector(tangent, r * Math.cos(phi) * Math.cos(theta))
+        .addScaledVector(right, r * Math.cos(phi) * Math.sin(theta))
+        .addScaledVector(zenith, r * Math.sin(phi));
+
+      // Set camera position and orientation
+      camera.position.copy(satPos).add(offset);
+      camera.lookAt(satPos);
+      camera.up.copy(zenith);
+
+    } else if (controlsRef.current) {
+      // Earth-centered view with OrbitControls
+      controlsRef.current.target.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+      controlsRef.current.update();
+    }
+  });
+
+  // Only enable OrbitControls for Earth view
   return (
     <OrbitControls
       ref={controlsRef}
+      enabled={viewCenter === 'earth'}
       enablePan={false}
       enableZoom={true}
       enableRotate={true}
-      minDistance={minDistance}
-      maxDistance={maxDistance}
-      autoRotate={!hasTelemetry && viewCenter === 'earth'}
+      minDistance={1.5}
+      maxDistance={10}
+      autoRotate={!hasTelemetry}
       autoRotateSpeed={0.5}
     />
   );
