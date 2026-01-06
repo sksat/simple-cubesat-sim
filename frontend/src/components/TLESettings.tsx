@@ -60,14 +60,33 @@ export function TLESettings({ isConnected }: TLESettingsProps) {
         body: JSON.stringify({ line1, line2 }),
       });
 
+      const responseText = await response.text();
+
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Failed to set TLE');
+        // Try to parse error as JSON, fallback to text
+        let errorMessage = 'Failed to set TLE';
+        try {
+          const errorData = JSON.parse(responseText);
+          // FastAPI validation errors have detail as array
+          if (Array.isArray(errorData.detail)) {
+            errorMessage = errorData.detail.map((e: { msg: string }) => e.msg).join(', ');
+          } else if (errorData.detail) {
+            errorMessage = errorData.detail;
+          }
+        } catch {
+          if (responseText) errorMessage = responseText;
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
-      setCurrentTLE(data);
-      setError(null);
+      // Parse success response
+      try {
+        const data = JSON.parse(responseText);
+        setCurrentTLE(data);
+        setError(null);
+      } catch {
+        throw new Error(`Invalid JSON response from server: ${responseText.substring(0, 100)}`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to set TLE');
     } finally {
@@ -120,14 +139,33 @@ export function TLESettings({ isConnected }: TLESettingsProps) {
         body: JSON.stringify({ line1: fetchedLine1, line2: fetchedLine2 }),
       });
 
+      const responseText = await setResponse.text();
+
       if (!setResponse.ok) {
-        const data = await setResponse.json();
-        throw new Error(data.detail || 'Failed to set TLE');
+        // Try to parse error as JSON, fallback to text
+        let errorMessage = 'Failed to set TLE';
+        try {
+          const errorData = JSON.parse(responseText);
+          // FastAPI validation errors have detail as array
+          if (Array.isArray(errorData.detail)) {
+            errorMessage = errorData.detail.map((e: { msg: string }) => e.msg).join(', ');
+          } else if (errorData.detail) {
+            errorMessage = errorData.detail;
+          }
+        } catch {
+          if (responseText) errorMessage = responseText;
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await setResponse.json();
-      setCurrentTLE(data);
-      setError(null);
+      // Parse success response
+      try {
+        const data = JSON.parse(responseText);
+        setCurrentTLE(data);
+        setError(null);
+      } catch {
+        throw new Error(`Invalid JSON response from server: ${responseText.substring(0, 100)}`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to fetch TLE');
     } finally {
