@@ -176,26 +176,62 @@ class Spacecraft:
         torque_rw = self.reaction_wheel.get_torque_on_spacecraft()
         total_torque = torque_mtq + torque_rw
 
-        # Euler's equation: I * omega_dot = T - omega x (I * omega)
-        # For simplicity, using basic Euler integration
-        omega_cross_I_omega = np.cross(
-            self.angular_velocity, self.inertia @ self.angular_velocity
-        )
-        omega_dot = self.inertia_inv @ (total_torque - omega_cross_I_omega)
-        self.angular_velocity = self.angular_velocity + omega_dot * dt
-
-        # Quaternion kinematic equation: q_dot = 0.5 * q * [omega, 0]
-        omega_quat = np.array([
-            self.angular_velocity[0],
-            self.angular_velocity[1],
-            self.angular_velocity[2],
-            0.0
-        ])
-        q_dot = 0.5 * multiply(self.quaternion, omega_quat)
-        self.quaternion = normalize(self.quaternion + q_dot * dt)
+        # RK4 integration for attitude dynamics
+        self._integrate_rk4(dt, total_torque)
 
         # Store magnetic field for next step
         self._prev_b_field = magnetic_field.copy()
+
+    def _integrate_rk4(
+        self,
+        dt: float,
+        torque: NDArray[np.float64],
+    ) -> None:
+        """Integrate attitude dynamics using RK4 method.
+
+        Integrates both Euler equation (angular velocity) and
+        quaternion kinematics simultaneously.
+
+        Args:
+            dt: Time step (seconds)
+            torque: External torque vector (Nm)
+        """
+        def omega_dot(omega: NDArray[np.float64]) -> NDArray[np.float64]:
+            """Compute angular acceleration from Euler equation."""
+            omega_cross_I_omega = np.cross(omega, self.inertia @ omega)
+            return self.inertia_inv @ (torque - omega_cross_I_omega)
+
+        def q_dot(q: NDArray[np.float64], omega: NDArray[np.float64]) -> NDArray[np.float64]:
+            """Compute quaternion derivative from kinematics."""
+            omega_quat = np.array([omega[0], omega[1], omega[2], 0.0])
+            return 0.5 * multiply(q, omega_quat)
+
+        # Current state
+        omega0 = self.angular_velocity
+        q0 = self.quaternion
+
+        # RK4 for angular velocity
+        k1_omega = omega_dot(omega0)
+        k1_q = q_dot(q0, omega0)
+
+        omega1 = omega0 + 0.5 * dt * k1_omega
+        q1 = normalize(q0 + 0.5 * dt * k1_q)
+        k2_omega = omega_dot(omega1)
+        k2_q = q_dot(q1, omega1)
+
+        omega2 = omega0 + 0.5 * dt * k2_omega
+        q2 = normalize(q0 + 0.5 * dt * k2_q)
+        k3_omega = omega_dot(omega2)
+        k3_q = q_dot(q2, omega2)
+
+        omega3 = omega0 + dt * k3_omega
+        q3 = normalize(q0 + dt * k3_q)
+        k4_omega = omega_dot(omega3)
+        k4_q = q_dot(q3, omega3)
+
+        # Update state
+        self.angular_velocity = omega0 + (dt / 6.0) * (k1_omega + 2*k2_omega + 2*k3_omega + k4_omega)
+        self.quaternion = normalize(q0 + (dt / 6.0) * (k1_q + 2*k2_q + 2*k3_q + k4_q))
 
     def _run_control(
         self,
