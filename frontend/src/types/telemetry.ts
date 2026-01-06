@@ -41,6 +41,8 @@ export interface OrbitState {
   latitude: number;
   longitude: number;
   altitude: number;
+  inclination: number;
+  period: number;
 }
 
 export interface Telemetry {

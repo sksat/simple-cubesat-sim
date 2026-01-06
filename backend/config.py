@@ -53,6 +53,15 @@ class ControlConfig:
 
 
 @dataclass
+class OrbitConfig:
+    """Orbit parameters (simplified circular orbit)."""
+    altitude: float = 600.0  # Altitude [km]
+    inclination: float = 97.8  # Inclination [deg] (SSO at 600km)
+    period: float = 96.7 * 60  # Orbital period [s] (~96.7 min for 600km)
+    initial_longitude: float = 0.0  # Initial longitude [deg]
+
+
+@dataclass
 class SimulationConfig:
     """Simulation parameters."""
     dt: float = 0.1  # Base time step [s]
@@ -68,6 +77,9 @@ class SimulationConfig:
     magnetic_field: list[float] = field(
         default_factory=lambda: [30e-6, 20e-6, 10e-6]
     )
+
+    # Orbit parameters
+    orbit: OrbitConfig = field(default_factory=OrbitConfig)
 
 
 @dataclass

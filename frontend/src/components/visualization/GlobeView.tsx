@@ -17,11 +17,11 @@ interface GlobeViewProps {
 
 export function GlobeView({ telemetry }: GlobeViewProps) {
   // Extract orbit data from telemetry
-  const orbitData = telemetry ? {
-    latitude: telemetry.orbit?.latitude ?? 0,
-    longitude: telemetry.orbit?.longitude ?? 0,
-    altitude: telemetry.orbit?.altitude ?? 400,
-  } : null;
+  const orbit = telemetry?.orbit;
+
+  // Default orbit parameters (600km SSO) used when no telemetry
+  const orbitAltitude = orbit?.altitude ?? 600;
+  const orbitInclination = orbit?.inclination ?? 97.8;
 
   return (
     <div className="globe-view" style={{ width: '100%', height: '100%', background: '#000' }}>
@@ -48,16 +48,16 @@ export function GlobeView({ telemetry }: GlobeViewProps) {
         <Earth />
 
         {/* Satellite marker */}
-        {orbitData && (
+        {orbit && (
           <SatelliteMarker
-            latitude={orbitData.latitude}
-            longitude={orbitData.longitude}
-            altitude={orbitData.altitude}
+            latitude={orbit.latitude}
+            longitude={orbit.longitude}
+            altitude={orbit.altitude}
           />
         )}
 
-        {/* Orbit path */}
-        <OrbitPath altitude={400} inclination={51.6} />
+        {/* Orbit path - uses parameters from telemetry */}
+        <OrbitPath altitude={orbitAltitude} inclination={orbitInclination} />
       </Canvas>
 
       {/* Orbit info overlay */}
@@ -69,65 +69,37 @@ export function GlobeView({ telemetry }: GlobeViewProps) {
 function Earth() {
   const meshRef = useRef<THREE.Mesh>(null);
 
-  // Create procedural Earth texture (simple color gradient)
+  // Load NASA Blue Marble Earth texture
   const texture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d')!;
-
-    // Ocean base
-    ctx.fillStyle = '#1a3a5c';
-    ctx.fillRect(0, 0, 512, 256);
-
-    // Simple continent shapes (very basic)
-    ctx.fillStyle = '#2d5a3d';
-
-    // North America
-    ctx.beginPath();
-    ctx.ellipse(100, 80, 50, 40, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // South America
-    ctx.beginPath();
-    ctx.ellipse(130, 160, 25, 50, 0.3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Europe/Africa
-    ctx.beginPath();
-    ctx.ellipse(260, 100, 30, 60, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Asia
-    ctx.beginPath();
-    ctx.ellipse(360, 80, 70, 50, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Australia
-    ctx.beginPath();
-    ctx.ellipse(420, 170, 25, 20, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Ice caps
-    ctx.fillStyle = '#cce5ff';
-    ctx.fillRect(0, 0, 512, 15);
-    ctx.fillRect(0, 241, 512, 15);
-
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.needsUpdate = true;
+    const loader = new THREE.TextureLoader();
+    // NASA Blue Marble texture (public domain)
+    const tex = loader.load(
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Land_ocean_ice_2048.jpg/2048px-Land_ocean_ice_2048.jpg',
+      // On load callback
+      (loadedTex) => {
+        loadedTex.colorSpace = THREE.SRGBColorSpace;
+      },
+      // Progress callback
+      undefined,
+      // On error - fall back to procedural texture
+      () => {
+        console.warn('Failed to load Earth texture, using fallback');
+      }
+    );
+    tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
   }, []);
 
-  // Slow rotation
+  // Slow rotation to simulate Earth rotation
   useFrame(() => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += 0.001;
+      meshRef.current.rotation.y += 0.0005;
     }
   });
 
   return (
     <mesh ref={meshRef}>
-      <sphereGeometry args={[1, 64, 32]} />
+      <sphereGeometry args={[1, 64, 64]} />
       <meshStandardMaterial
         map={texture}
         roughness={0.8}
@@ -157,17 +129,38 @@ function SatelliteMarker({ latitude, longitude, altitude }: SatelliteMarkerProps
   const y = r * Math.sin(latRad);
   const z = r * Math.cos(latRad) * Math.cos(lonRad);
 
+  // Ground position (on Earth surface)
+  const groundX = earthRadius * Math.cos(latRad) * Math.sin(lonRad);
+  const groundY = earthRadius * Math.sin(latRad);
+  const groundZ = earthRadius * Math.cos(latRad) * Math.cos(lonRad);
+
   return (
-    <group position={[x, y, z]}>
-      {/* Satellite body */}
-      <mesh>
-        <boxGeometry args={[0.02, 0.02, 0.03]} />
-        <meshBasicMaterial color="#ff4444" />
-      </mesh>
-      {/* Glow effect */}
-      <mesh>
-        <sphereGeometry args={[0.04, 16, 16]} />
-        <meshBasicMaterial color="#ff4444" transparent opacity={0.3} />
+    <group>
+      {/* Satellite at orbital altitude */}
+      <group position={[x, y, z]}>
+        {/* Satellite body */}
+        <mesh>
+          <boxGeometry args={[0.03, 0.03, 0.05]} />
+          <meshBasicMaterial color="#ff4444" />
+        </mesh>
+        {/* Glow effect */}
+        <mesh>
+          <sphereGeometry args={[0.06, 16, 16]} />
+          <meshBasicMaterial color="#ff4444" transparent opacity={0.4} />
+        </mesh>
+      </group>
+      {/* Ground track line from satellite to Earth surface */}
+      <Line
+        points={[[x, y, z], [groundX, groundY, groundZ]]}
+        color="#ff4444"
+        lineWidth={1}
+        transparent
+        opacity={0.5}
+      />
+      {/* Ground marker */}
+      <mesh position={[groundX, groundY, groundZ]}>
+        <sphereGeometry args={[0.02, 8, 8]} />
+        <meshBasicMaterial color="#ffaa44" />
       </mesh>
     </group>
   );

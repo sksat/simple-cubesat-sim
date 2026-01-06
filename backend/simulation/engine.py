@@ -166,6 +166,59 @@ class SimulationEngine:
         """
         self.spacecraft.set_target_attitude(quaternion)
 
+    def get_orbit_position(self) -> dict:
+        """Calculate current orbit position (simplified circular orbit).
+
+        Returns:
+            Dictionary with latitude, longitude, altitude, and orbit parameters
+        """
+        config = get_config()
+        orbit = config.simulation.orbit
+
+        # Orbital parameters
+        period = orbit.period
+        inclination = orbit.inclination
+        inclination_rad = np.radians(inclination)
+        altitude = orbit.altitude
+        initial_lon = orbit.initial_longitude
+
+        # Mean anomaly (angle along orbit from ascending node)
+        mean_anomaly = (2 * np.pi * self.sim_time / period) % (2 * np.pi)
+
+        # Latitude oscillates between +/- inclination
+        # For SSO (retrograde), inclination > 90°, so we use sin(180° - i)
+        effective_inc = inclination_rad if inclination_rad <= np.pi / 2 else np.pi - inclination_rad
+        latitude = np.degrees(np.arcsin(np.sin(effective_inc) * np.sin(mean_anomaly)))
+
+        # Longitude calculation for ground track
+        # Earth rotates 360°/86400s = 0.00417°/s eastward
+        earth_rotation_rate = 360.0 / 86400.0  # deg/s
+
+        # Orbital longitude progression
+        if abs(np.cos(mean_anomaly)) > 1e-10:
+            orbit_lon = np.degrees(
+                np.arctan2(
+                    np.cos(inclination_rad) * np.sin(mean_anomaly),
+                    np.cos(mean_anomaly)
+                )
+            )
+        else:
+            orbit_lon = 90.0 if np.sin(mean_anomaly) > 0 else -90.0
+
+        # Ground track longitude (subtract Earth rotation)
+        longitude = initial_lon + orbit_lon - earth_rotation_rate * self.sim_time
+
+        # Normalize to [-180, 180]
+        longitude = ((longitude + 180) % 360) - 180
+
+        return {
+            "latitude": float(latitude),
+            "longitude": float(longitude),
+            "altitude": float(altitude),
+            "inclination": float(inclination),
+            "period": float(period),
+        }
+
     def get_telemetry(self) -> dict:
         """Get current telemetry data.
 
@@ -216,4 +269,6 @@ class SimulationEngine:
             "environment": {
                 "magneticField": self._magnetic_field_inertial.tolist(),
             },
+
+            "orbit": self.get_orbit_position(),
         }
