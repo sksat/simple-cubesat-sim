@@ -248,11 +248,26 @@ async def handle_mode_change(
     if mode in ["IDLE", "DETUMBLING", "POINTING", "UNLOADING"]:
         engine.set_control_mode(mode)
 
-        # Handle target quaternion for pointing mode
+        # Handle pointing mode configuration
+        if "pointingMode" in params:
+            pointing_mode = params["pointingMode"]
+            if pointing_mode in ["MANUAL", "SUN", "NADIR", "GROUND_STATION", "IMAGING_TARGET"]:
+                engine.set_pointing_mode(pointing_mode)
+
+        # Handle target quaternion for manual pointing mode
         if "targetQuaternion" in params:
             import numpy as np
             target = np.array(params["targetQuaternion"])
             engine.set_target_attitude(target)
+
+        # Handle imaging target
+        if "imagingTarget" in params:
+            target = params["imagingTarget"]
+            engine.set_imaging_target(
+                lat_deg=target.get("latitude", 0),
+                lon_deg=target.get("longitude", 0),
+                alt_m=target.get("altitude", 0),
+            )
     else:
         await send_error(websocket, f"Unknown mode: {mode}")
         return

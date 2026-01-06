@@ -7,6 +7,8 @@ import type {
   ClientMessage,
   WebSocketMessage,
   ControlMode,
+  PointingMode,
+  ImagingTarget,
 } from '../types/telemetry';
 
 type MessageHandler = (message: WebSocketMessage) => void;
@@ -98,16 +100,20 @@ export class TelemetryWebSocket {
   }
 
   /**
-   * Set control mode.
+   * Set control mode with optional pointing configuration.
    */
   setControlMode(
     mode: ControlMode,
-    targetQuaternion?: [number, number, number, number]
+    options?: {
+      pointingMode?: PointingMode;
+      targetQuaternion?: [number, number, number, number];
+      imagingTarget?: ImagingTarget;
+    }
   ): void {
     const message: ClientMessage = {
       type: 'mode',
       mode,
-      params: targetQuaternion ? { targetQuaternion } : undefined,
+      params: options,
     };
     this.send(message);
   }

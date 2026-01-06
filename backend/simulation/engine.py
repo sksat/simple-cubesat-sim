@@ -13,6 +13,31 @@ from backend.config import Config, get_config
 from backend.simulation.spacecraft import Spacecraft
 from backend.dynamics.orbit import OrbitPropagator
 from backend.power import is_in_eclipse
+from backend.control.attitude_target import (
+    AttitudeTargetCalculator,
+    PointingConfig,
+    sun_pointing_config,
+    nadir_pointing_config,
+    ground_station_pointing_config,
+    imaging_target_pointing_config,
+)
+from backend.control.target_direction import (
+    TargetDirection,
+    GroundStation,
+    ImagingTarget,
+    MAKINOHARA,
+    is_ground_station_visible,
+)
+
+
+# Pointing mode types
+PointingMode = Literal[
+    "MANUAL",       # Use manually set quaternion
+    "SUN",          # Sun pointing (+Z toward sun)
+    "NADIR",        # Nadir pointing (-Z toward Earth)
+    "GROUND_STATION",  # Point toward ground station
+    "IMAGING_TARGET",  # Point toward imaging target
+]
 
 
 class SimulationState(Enum):
@@ -73,6 +98,13 @@ class SimulationEngine:
 
         # Eclipse status (updated each step)
         self._is_illuminated = True
+
+        # Attitude target calculator
+        self._attitude_target_calc = AttitudeTargetCalculator(sun_pointing_config())
+        self._pointing_mode: PointingMode = "MANUAL"
+        self._ground_station = MAKINOHARA
+        self._imaging_target: Optional[ImagingTarget] = None
+        self._ground_station_visible = False
 
     @property
     def time_warp(self) -> float:
@@ -143,6 +175,14 @@ class SimulationEngine:
         illuminated = not is_in_eclipse(sat_pos_eci, sun_dir_eci)
         self._is_illuminated = illuminated
 
+        # Calculate target quaternion for POINTING mode
+        # Note: This is expensive due to Astropy transforms, so only do when needed
+        if self.spacecraft.control_mode == "POINTING" and self._pointing_mode != "MANUAL":
+            self._update_target_attitude(sat_pos_eci, sun_dir_eci)
+
+        # Ground station visibility is calculated in get_telemetry() on demand
+        # to avoid expensive coordinate transforms every step
+
         # Sub-step if effective_dt is too large
         remaining_dt = effective_dt
         while remaining_dt > 0:
@@ -191,6 +231,47 @@ class SimulationEngine:
             quaternion: Target quaternion [x, y, z, w]
         """
         self.spacecraft.set_target_attitude(quaternion)
+
+    def set_pointing_mode(self, mode: PointingMode) -> None:
+        """Set pointing mode for automatic target calculation.
+
+        Args:
+            mode: Pointing mode (MANUAL, SUN, NADIR, GROUND_STATION, IMAGING_TARGET)
+        """
+        self._pointing_mode = mode
+
+        # Update attitude target calculator config
+        if mode == "SUN":
+            self._attitude_target_calc.set_config(sun_pointing_config())
+        elif mode == "NADIR":
+            self._attitude_target_calc.set_config(nadir_pointing_config())
+        elif mode == "GROUND_STATION":
+            self._attitude_target_calc.set_config(
+                ground_station_pointing_config(self._ground_station)
+            )
+        elif mode == "IMAGING_TARGET" and self._imaging_target is not None:
+            self._attitude_target_calc.set_config(
+                imaging_target_pointing_config(self._imaging_target)
+            )
+
+    @property
+    def pointing_mode(self) -> PointingMode:
+        """Get current pointing mode."""
+        return self._pointing_mode
+
+    def set_imaging_target(self, lat_deg: float, lon_deg: float, alt_m: float = 0.0) -> None:
+        """Set imaging target location.
+
+        Args:
+            lat_deg: Latitude in degrees
+            lon_deg: Longitude in degrees
+            alt_m: Altitude in meters (default 0)
+        """
+        self._imaging_target = ImagingTarget(lat_deg, lon_deg, alt_m)
+        if self._pointing_mode == "IMAGING_TARGET":
+            self._attitude_target_calc.set_config(
+                imaging_target_pointing_config(self._imaging_target)
+            )
 
     def set_tle(self, line1: str, line2: str) -> None:
         """Set TLE for orbit propagation.
@@ -293,11 +374,13 @@ class SimulationEngine:
 
             "control": {
                 "mode": self.spacecraft.control_mode,
+                "pointingMode": self._pointing_mode,
                 "targetQuaternion": sc_state["target_quaternion"].tolist(),
                 "error": {
                     "attitude": self.spacecraft.get_attitude_error(),
                     "rate": float(np.linalg.norm(omega)),
                 },
+                "groundStationVisible": self._ground_station_visible,
             },
 
             "environment": {
@@ -364,3 +447,83 @@ class SimulationEngine:
             orbit_state.position_eci[1],
             orbit_state.position_eci[2],
         ])
+
+    def _get_satellite_velocity_eci(self) -> NDArray[np.float64]:
+        """Get current satellite velocity in ECI frame.
+
+        Returns:
+            Velocity vector in ECI frame (km/s)
+        """
+        orbit_state = self._orbit_propagator.propagate(self.sim_time, self._sim_epoch)
+        return np.array([
+            orbit_state.velocity_eci[0],
+            orbit_state.velocity_eci[1],
+            orbit_state.velocity_eci[2],
+        ])
+
+    def _get_dcm_eci_to_ecef(self) -> NDArray[np.float64]:
+        """Get DCM from ECI to ECEF at current simulation time.
+
+        Returns:
+            3x3 rotation matrix
+        """
+        from astropy.time import Time
+        from astropy.coordinates import GCRS, ITRS
+        import astropy.units as u
+
+        sim_time = Time(self.get_absolute_time())
+
+        # Create basis vectors in GCRS and transform to ITRS
+        # This gives us the rotation matrix
+        gcrs_x = GCRS(ra=0*u.deg, dec=0*u.deg, distance=1*u.AU, obstime=sim_time)
+        gcrs_y = GCRS(ra=90*u.deg, dec=0*u.deg, distance=1*u.AU, obstime=sim_time)
+        gcrs_z = GCRS(ra=0*u.deg, dec=90*u.deg, distance=1*u.AU, obstime=sim_time)
+
+        itrs_x = gcrs_x.transform_to(ITRS(obstime=sim_time))
+        itrs_y = gcrs_y.transform_to(ITRS(obstime=sim_time))
+        itrs_z = gcrs_z.transform_to(ITRS(obstime=sim_time))
+
+        # Build DCM from transformed basis vectors
+        # Type ignores for Astropy's complex typing
+        dcm = np.array([
+            [itrs_x.cartesian.x.value, itrs_y.cartesian.x.value, itrs_z.cartesian.x.value],  # type: ignore[union-attr]
+            [itrs_x.cartesian.y.value, itrs_y.cartesian.y.value, itrs_z.cartesian.y.value],  # type: ignore[union-attr]
+            [itrs_x.cartesian.z.value, itrs_y.cartesian.z.value, itrs_z.cartesian.z.value],  # type: ignore[union-attr]
+        ])
+        return dcm
+
+    def _update_target_attitude(
+        self,
+        sat_pos_eci_km: NDArray[np.float64],
+        sun_dir_eci: NDArray[np.float64],
+    ) -> None:
+        """Update target attitude based on current pointing mode.
+
+        Args:
+            sat_pos_eci_km: Satellite position in ECI (km)
+            sun_dir_eci: Sun direction unit vector in ECI
+        """
+        try:
+            sat_pos_eci_m = sat_pos_eci_km * 1000.0  # km to m
+            sat_vel_eci_km_s = self._get_satellite_velocity_eci()
+            sat_vel_eci_m_s = sat_vel_eci_km_s * 1000.0  # km/s to m/s
+
+            # Only compute expensive ECI-to-ECEF transform when needed
+            # (for ground station or imaging target pointing)
+            if self._pointing_mode in ["GROUND_STATION", "IMAGING_TARGET"]:
+                dcm_eci_to_ecef = self._get_dcm_eci_to_ecef()
+            else:
+                # For SUN, NADIR, VELOCITY modes, we don't need ECEF transform
+                dcm_eci_to_ecef = np.eye(3)
+
+            target_q = self._attitude_target_calc.calculate(
+                sat_pos_eci_m=sat_pos_eci_m,
+                sat_vel_eci_m_s=sat_vel_eci_m_s,
+                sun_dir_eci=sun_dir_eci,
+                dcm_eci_to_ecef=dcm_eci_to_ecef,
+            )
+
+            self.spacecraft.set_target_attitude(target_q)
+        except ValueError:
+            # If calculation fails (e.g., parallel vectors), keep previous target
+            pass

@@ -24,13 +24,17 @@ export interface ActuatorState {
   magnetorquers: MagnetorquerState;
 }
 
+export type PointingMode = 'MANUAL' | 'SUN' | 'NADIR' | 'GROUND_STATION' | 'IMAGING_TARGET';
+
 export interface ControlState {
   mode: ControlMode;
+  pointingMode: PointingMode;
   targetQuaternion: [number, number, number, number];
   error: {
     attitude: number;
     rate: number;
   };
+  groundStationVisible: boolean;
 }
 
 export interface EnvironmentState {
@@ -106,11 +110,19 @@ export interface CommandMessage {
   command: 'START' | 'STOP' | 'PAUSE' | 'RESET';
 }
 
+export interface ImagingTarget {
+  latitude: number;
+  longitude: number;
+  altitude?: number;
+}
+
 export interface ModeChangeMessage {
   type: 'mode';
   mode: ControlMode;
   params?: {
+    pointingMode?: PointingMode;
     targetQuaternion?: [number, number, number, number];
+    imagingTarget?: ImagingTarget;
   };
 }
 

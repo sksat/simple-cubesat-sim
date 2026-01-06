@@ -7,8 +7,16 @@ import type {
   Telemetry,
   SimulationState,
   ControlMode,
+  PointingMode,
+  ImagingTarget,
 } from '../types/telemetry';
 import { telemetryWS } from '../services/websocket';
+
+interface ControlModeOptions {
+  pointingMode?: PointingMode;
+  targetQuaternion?: [number, number, number, number];
+  imagingTarget?: ImagingTarget;
+}
 
 interface UseTelemetryResult {
   telemetry: Telemetry | null;
@@ -20,7 +28,7 @@ interface UseTelemetryResult {
   stop: () => void;
   pause: () => void;
   reset: () => void;
-  setControlMode: (mode: ControlMode, targetQuaternion?: [number, number, number, number]) => void;
+  setControlMode: (mode: ControlMode, options?: ControlModeOptions) => void;
   setTimeWarp: (timeWarp: number) => void;
 }
 
@@ -90,9 +98,9 @@ export function useTelemetry(): UseTelemetryResult {
 
   const setControlMode = useCallback((
     mode: ControlMode,
-    targetQuaternion?: [number, number, number, number]
+    options?: ControlModeOptions
   ) => {
-    telemetryWS.setControlMode(mode, targetQuaternion);
+    telemetryWS.setControlMode(mode, options);
   }, []);
 
   const setTimeWarp = useCallback((timeWarp: number) => {

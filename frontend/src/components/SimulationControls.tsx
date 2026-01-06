@@ -2,8 +2,14 @@
  * Simulation control panel component.
  */
 
-import type { ControlMode, Telemetry, SimulationState } from '../types/telemetry';
+import type { ControlMode, PointingMode, Telemetry, SimulationState, ImagingTarget } from '../types/telemetry';
 import { TLESettings } from './TLESettings';
+
+interface ControlModeOptions {
+  pointingMode?: PointingMode;
+  targetQuaternion?: [number, number, number, number];
+  imagingTarget?: ImagingTarget;
+}
 
 interface TelemetryState {
   telemetry: Telemetry | null;
@@ -13,7 +19,7 @@ interface TelemetryState {
   stop: () => void;
   pause: () => void;
   reset: () => void;
-  setControlMode: (mode: ControlMode, targetQuaternion?: [number, number, number, number]) => void;
+  setControlMode: (mode: ControlMode, options?: ControlModeOptions) => void;
   setTimeWarp: (timeWarp: number) => void;
 }
 
@@ -35,7 +41,18 @@ export function SimulationControls({ telemetryState }: SimulationControlsProps) 
   } = telemetryState;
 
   const handleModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setControlMode(e.target.value as ControlMode);
+    const mode = e.target.value as ControlMode;
+    // Keep current pointing mode when switching to POINTING
+    if (mode === 'POINTING' && telemetry?.control.pointingMode) {
+      setControlMode(mode, { pointingMode: telemetry.control.pointingMode });
+    } else {
+      setControlMode(mode);
+    }
+  };
+
+  const handlePointingModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const pointingMode = e.target.value as PointingMode;
+    setControlMode('POINTING', { pointingMode });
   };
 
   const handleTimeWarpChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -80,6 +97,23 @@ export function SimulationControls({ telemetryState }: SimulationControlsProps) 
         </select>
       </div>
 
+      {telemetry?.control.mode === 'POINTING' && (
+        <div className="pointing-mode">
+          <label>Pointing Target:</label>
+          <select
+            value={telemetry?.control.pointingMode || 'MANUAL'}
+            onChange={handlePointingModeChange}
+            disabled={!isConnected}
+          >
+            <option value="MANUAL">Manual</option>
+            <option value="SUN">Sun (+Z)</option>
+            <option value="NADIR">Nadir (-Z)</option>
+            <option value="GROUND_STATION">Ground Station</option>
+            <option value="IMAGING_TARGET">Imaging Target</option>
+          </select>
+        </div>
+      )}
+
       <div className="time-warp">
         <label>Time Warp:</label>
         <select
@@ -118,8 +152,12 @@ export function SimulationControls({ telemetryState }: SimulationControlsProps) 
           <div className="telemetry-section">
             <h4>Control</h4>
             <p>Mode: {telemetry.control.mode}</p>
+            {telemetry.control.mode === 'POINTING' && (
+              <p>Target: {telemetry.control.pointingMode}</p>
+            )}
             <p>Attitude Error: {telemetry.control.error.attitude.toFixed(2)}deg</p>
             <p>Rate: {(telemetry.control.error.rate * 180 / Math.PI).toFixed(2)}deg/s</p>
+            <p>GS Visible: {telemetry.control.groundStationVisible ? '📡 Yes' : '❌ No'}</p>
           </div>
 
           <div className="telemetry-section">
