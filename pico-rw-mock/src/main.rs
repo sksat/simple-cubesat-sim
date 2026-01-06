@@ -9,6 +9,7 @@ use panic_halt as _;
 use embedded_hal::delay::DelayNs;
 use embedded_hal::digital::OutputPin;
 use embedded_hal::pwm::SetDutyCycle;
+use embedded_hal_0_2::digital::v2::InputPin;
 
 use defmt_rtt as _;
 
@@ -79,6 +80,14 @@ const KICKSTART_DUTY: u8 = 100;
 const KICKSTART_MS: u32 = 150;
 const MIN_DUTY: u8 = 40;
 
+/// Axis identification for multi-Pico setup
+#[derive(Debug, Clone, Copy, defmt::Format)]
+enum Axis {
+    X,
+    Y,
+    Z,
+}
+
 #[hal::entry]
 fn main() -> ! {
     let mut pac = pac::Peripherals::take().unwrap();
@@ -103,6 +112,29 @@ fn main() -> ! {
         sio.gpio_bank0,
         &mut pac.RESETS,
     );
+
+    // Detect axis from GPIO0 and GPIO1
+    // Read GPIO pins with pull-up (LOW=0, HIGH=1)
+    let id0 = pins.gpio0.into_pull_up_input();
+    let id1 = pins.gpio1.into_pull_up_input();
+    let bit0 = if id0.is_low().unwrap() { 0 } else { 1 };
+    let bit1 = if id1.is_low().unwrap() { 0 } else { 1 };
+    let axis_id = (bit1 << 1) | bit0;
+
+    let axis = match axis_id {
+        0b11 => Axis::X,  // Both HIGH (floating) → X-axis
+        0b10 => Axis::Y,  // GPIO0=LOW, GPIO1=HIGH → Y-axis
+        0b01 => Axis::Z,  // GPIO0=HIGH, GPIO1=LOW → Z-axis
+        0b00 => panic!("Invalid axis ID: both GPIO0 and GPIO1 are LOW"),
+        _ => unreachable!(),
+    };
+
+    let serial = match axis {
+        Axis::X => "RW-X",
+        Axis::Y => "RW-Y",
+        Axis::Z => "RW-Z",
+    };
+    defmt::println!("Detected axis: {}, Serial: {}", axis, serial);
 
     // nSLEEP pin: set HIGH to enable motor driver
     let mut motor_sleep = pins.gpio18.into_push_pull_output();
@@ -153,7 +185,7 @@ fn main() -> ! {
         .strings(&[StringDescriptors::default()
             .manufacturer("sksat")
             .product("Reaction Wheel Visualizer")
-            .serial_number("001")])
+            .serial_number(serial)])
         .unwrap()
         .max_packet_size_0(64)
         .unwrap()

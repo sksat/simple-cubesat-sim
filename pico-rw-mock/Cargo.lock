@@ -367,6 +367,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
+name = "pico-rw-mock"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "critical-section",
+ "defmt",
+ "defmt-rtt",
+ "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0",
+ "panic-halt",
+ "rp-pico",
+ "usb-device",
+ "usbd-hid",
+ "zerocopy",
+]
+
+[[package]]
 name = "pio"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -513,23 +531,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
 dependencies = [
  "semver",
-]
-
-[[package]]
-name = "rw-visualizer"
-version = "0.1.0"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "critical-section",
- "defmt",
- "defmt-rtt",
- "embedded-hal 1.0.0",
- "panic-halt",
- "rp-pico",
- "usb-device",
- "usbd-hid",
- "zerocopy",
 ]
 
 [[package]]

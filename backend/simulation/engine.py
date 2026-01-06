@@ -264,7 +264,7 @@ class SimulationEngine:
         # Update hardware visualization (Pico RW controller)
         if self._pico_rw is not None:
             rw_speed = self.spacecraft.reaction_wheel.get_speed()
-            self._pico_rw.set_speed_x(rw_speed[0])
+            self._pico_rw.set_speed(rw_speed)  # Send all 3 axes
 
     def get_magnetic_field(self) -> NDArray[np.float64]:
         """Get current magnetic field in inertial frame.
