@@ -1,0 +1,9 @@
+[project]
+name = "drv8833-motor-host"
+version = "0.1.0"
+description = "Host controller for DRV8833 motor driver"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "hid>=1.0.6",
+]

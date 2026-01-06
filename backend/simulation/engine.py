@@ -32,6 +32,7 @@ from backend.utils.coordinates import dcm_eci_to_ecef_fast_np
 from backend.prediction.contact_predictor import ContactPredictor
 from backend.prediction.models import ContactWindow, TimelineActionType
 from backend.timeline.timeline_manager import TimelineManager
+from backend.hardware.pico_rw_controller import PicoRWController
 
 
 # Pointing mode types
@@ -120,6 +121,22 @@ class SimulationEngine:
         self._cached_next_contact: Optional[ContactWindow] = None
         self._contact_prediction_valid_until: float = 0.0
 
+        # Hardware interface (optional - Pico RW controller)
+        # Only enable if ENABLE_PICO_RW environment variable is set
+        self._pico_rw: Optional[PicoRWController] = None
+        if self._should_enable_pico_rw():
+            try:
+                max_rw_speed = config.spacecraft.reaction_wheel.max_speed
+                self._pico_rw = PicoRWController(max_rw_speed=max_rw_speed)
+                if self._pico_rw.connect():
+                    print(f"Pico RW controller connected (max speed: {max_rw_speed:.1f} rad/s)")
+                else:
+                    print("Pico RW controller not found - running without hardware")
+                    self._pico_rw = None
+            except Exception as e:
+                print(f"Failed to initialize Pico RW controller: {e}")
+                self._pico_rw = None
+
     @property
     def time_warp(self) -> float:
         """Get current time warp factor."""
@@ -137,6 +154,16 @@ class SimulationEngine:
         if time_warp <= 0:
             raise ValueError("time_warp must be positive")
         self._time_warp = time_warp
+
+    def _should_enable_pico_rw(self) -> bool:
+        """Check if Pico RW controller should be enabled.
+
+        Returns:
+            True if ENABLE_PICO_RW environment variable is set to "1" or "true"
+        """
+        import os
+        enabled = os.environ.get("ENABLE_PICO_RW", "").lower()
+        return enabled in ("1", "true", "yes")
 
     def get_absolute_time(self) -> datetime:
         """Get current absolute simulation time.
@@ -234,6 +261,11 @@ class SimulationEngine:
 
         # Update simulation time
         self.sim_time += effective_dt
+
+        # Update hardware visualization (Pico RW controller)
+        if self._pico_rw is not None:
+            rw_speed = self.spacecraft.reaction_wheel.get_speed()
+            self._pico_rw.set_speed_x(rw_speed[0])
 
     def get_magnetic_field(self) -> NDArray[np.float64]:
         """Get current magnetic field in inertial frame.

@@ -13,6 +13,7 @@ dependencies = [
     "sgp4>=2.23",
     "pydantic>=2.10.0",
     "astropy>=6.0.0",
+    "hid>=1.0.6",
 ]
 
 [dependency-groups]

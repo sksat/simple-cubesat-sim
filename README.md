@@ -46,6 +46,23 @@ npm install
 npm run dev
 ```
 
+### Hardware Visualization (Optional)
+
+To visualize reaction wheel rotation with a physical motor using Raspberry Pi Pico:
+
+1. Flash firmware to Pico:
+   ```bash
+   cd pico-rw-mock
+   cargo run --release
+   ```
+
+2. Enable hardware mode when starting backend:
+   ```bash
+   ENABLE_PICO_RW=1 uv run uvicorn backend.main:app --reload
+   ```
+
+See [pico-rw-mock/README.md](pico-rw-mock/README.md) for hardware setup details.
+
 ## Development
 
 This project follows TDD (Test-Driven Development) approach for control algorithms.
