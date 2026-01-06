@@ -70,7 +70,7 @@ class SimulationConfig:
 
     # Initial conditions
     initial_angular_velocity: list[float] = field(
-        default_factory=lambda: [0.1, 0.15, -0.12]  # ~12 deg/s tumble
+        default_factory=lambda: [0.2, 0.3, -0.24]  # ~24 deg/s tumble
     )
 
     # Environment (simplified constant magnetic field in inertial frame [T])
