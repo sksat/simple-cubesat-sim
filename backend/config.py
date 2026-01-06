@@ -49,7 +49,10 @@ class ControlConfig:
     attitude_kd: float = 0.1
 
     # RW unloading
-    unloading_gain: float = 1e4
+    # Gain for m = k * (B × H) / |B|^2
+    # With H~0.01 Nms, B~30e-6 T, want m~0.1 Am²:
+    # k * 3e-7 / 9e-10 = k * 333 ≈ 0.1 → k ≈ 3e-4
+    unloading_gain: float = 300.0  # Reduced from 1e4 to avoid MTQ saturation
 
 
 @dataclass

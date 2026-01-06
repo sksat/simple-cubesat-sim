@@ -99,11 +99,15 @@ class Spacecraft:
         # Automatic unloading controller
         # Uses 80% of max_speed as thresholds
         max_speed = rw_cfg.max_speed
+        # Gain calculation: want T ~1e-6 Nm for speed_error ~100 rad/s
+        # Then m = T / |B|² ≈ 1e-6 / 9e-10 ≈ 1000, still too large
+        # Need m ~0.1, so T ~9e-11 * 0.1 = 9e-12, gain = 9e-12/100 = 9e-14
+        # But this is too small, so use intermittent unloading via small gain
         self._auto_unloading = AutoUnloadingController(
             upper_threshold=np.array([0.8 * max_speed] * 3),
             lower_threshold=np.array([-0.8 * max_speed] * 3),
             target_speed=np.zeros(3),
-            control_gain=-1e-3,  # Negative gain to oppose speed (stronger)
+            control_gain=-1e-7,  # Very small to avoid MTQ saturation
         )
 
         # Control mode
@@ -314,14 +318,13 @@ class Spacecraft:
             # Controller outputs spacecraft torque, RW needs negative
             self.reaction_wheel.command_torque(-torque)
 
-            # Automatic unloading (c2a-aobc style)
+            # Automatic threshold-based unloading
             # Check if any RW needs unloading and apply MTQ if needed
             rw_speed = self.reaction_wheel.get_speed()
             self._auto_unloading.update_state(rw_speed)
 
             if self._auto_unloading.is_active():
-                # Use momentum-based unloading (more effective than torque-based)
-                # Only unload axes that need it (selective unloading)
+                # Selective unloading: only unload axes that exceed thresholds
                 h_rw = self.reaction_wheel.get_momentum()
 
                 # Zero out momentum for axes not needing unloading
@@ -331,9 +334,11 @@ class Spacecraft:
                     if self._auto_unloading.state[i] != UnloadingState.OFF:
                         h_unload[i] = h_rw[i]
 
-                # Apply standard unloading law to selected momentum
+                # Apply unloading with reduced gain to avoid constant saturation
+                # Use 10% of normal unloading gain for gentle, continuous unloading
                 dipole = self._unloading_controller.compute(h_unload, magnetic_field)
-                self.magnetorquer.command(dipole)
+                dipole_scaled = dipole * 0.1  # Scale down to reduce saturation
+                self.magnetorquer.command(dipole_scaled)
             else:
                 # No unloading needed
                 self.magnetorquer.command(np.array([0.0, 0.0, 0.0]))
