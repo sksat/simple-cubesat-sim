@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Telemetry } from '../../types/telemetry';
 import type { OrbitHistoryPoint } from '../../hooks/useOrbitHistory';
-import { CubeSatModel } from './CubeSatModel';
+import { CubeSatModel, SunDirectionArrow } from './CubeSatModel';
 import { StatusOverlay } from '../StatusOverlay';
 
 /** Camera offset in orbit frame (spherical coordinates) */
@@ -41,7 +41,7 @@ export function GlobeView({ telemetry, orbitHistory, viewCenter }: GlobeViewProp
   // Satellite position for camera target
   const satellitePosition = orbit?.positionThreeJS ?? [0, 0, 0];
 
-  // Sun direction for day/night rendering
+  // Sun direction for day/night rendering (Three.js scene coordinates, ECEF-based)
   const sunDirection = telemetry?.environment.sunDirection ?? [1, 0, 0];
 
   return (
@@ -74,6 +74,7 @@ export function GlobeView({ telemetry, orbitHistory, viewCenter }: GlobeViewProp
           <SatelliteMarker
             position={orbit.positionThreeJS}
             quaternion={telemetry.attitude.quaternion}
+            sunDirection={sunDirection as [number, number, number]}
           />
         )}
 
@@ -389,9 +390,10 @@ interface SatelliteMarkerProps {
   /** Pre-computed Three.js position from backend (Astropy) */
   position: [number, number, number];
   quaternion: [number, number, number, number];
+  sunDirection?: [number, number, number] | null;
 }
 
-function SatelliteMarker({ position, quaternion }: SatelliteMarkerProps) {
+function SatelliteMarker({ position, quaternion, sunDirection }: SatelliteMarkerProps) {
   const groupRef = useRef<THREE.Group>(null);
 
   // Position from backend (already in Three.js coordinates via Astropy)
@@ -442,9 +444,20 @@ function SatelliteMarker({ position, quaternion }: SatelliteMarkerProps) {
       {/* Satellite at orbital altitude with CubeSat model */}
       <group position={[x, y, z]} ref={groupRef}>
         <group scale={[satelliteScale, satelliteScale, satelliteScale]}>
-          <CubeSatModel quaternion={[0, 0, 0, 1]} />
+          {/* Don't pass sunDirection to CubeSatModel in Orbit View */}
+          <CubeSatModel quaternion={quaternion} disableRotation />
         </group>
       </group>
+
+      {/* Sun direction arrow (fixed in scene coordinates, independent of spacecraft rotation) */}
+      {sunDirection && (
+        <group position={[x, y, z]}>
+          <group scale={[satelliteScale, satelliteScale, satelliteScale]}>
+            <SunDirectionArrow sunDirection={sunDirection} length={3.0} />
+          </group>
+        </group>
+      )}
+
       {/* Ground track line from satellite to Earth surface */}
       <Line
         points={[[x, y, z], [groundX, groundY, groundZ]]}

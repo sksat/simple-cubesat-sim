@@ -17,6 +17,8 @@ interface SatelliteViewProps {
 export function SatelliteView({ telemetry }: SatelliteViewProps) {
   // Default quaternion (identity - no rotation)
   const quaternion: [number, number, number, number] = telemetry?.attitude.quaternion ?? [0, 0, 0, 1];
+  // Sun direction vector in ECI frame (for body frame transformation)
+  const sunDirectionECI: [number, number, number] | null = telemetry?.environment.sunDirectionECI ?? null;
 
   return (
     <div className="satellite-view" style={{ width: '100%', height: '100%', background: '#0a0a1a' }}>
@@ -65,8 +67,8 @@ export function SatelliteView({ telemetry }: SatelliteViewProps) {
         {/* Inertial frame axes */}
         <InertialAxes />
 
-        {/* CubeSat model */}
-        <CubeSatModel quaternion={quaternion} />
+        {/* CubeSat model with sun direction arrow */}
+        <CubeSatModel quaternion={quaternion} sunDirection={sunDirectionECI} />
       </Canvas>
 
       {/* Status overlay */}

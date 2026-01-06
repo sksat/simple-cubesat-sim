@@ -490,6 +490,7 @@ class SimulationEngine:
             "environment": {
                 "magneticField": self._magnetic_field_inertial.tolist(),
                 "sunDirection": self._get_sun_direction(),
+                "sunDirectionECI": self._get_sun_direction_for_body_frame(),
                 "isIlluminated": self._is_illuminated,
             },
 
@@ -525,6 +526,22 @@ class SimulationEngine:
             sim_time = Time(self.get_absolute_time())
             sun_dir = get_sun_direction_threejs(sim_time)
             return list(sun_dir)
+
+    def _get_sun_direction_for_body_frame(self) -> list[float]:
+        """Get current sun direction in ECI (inertial) frame for body frame transformation.
+
+        This is used by the frontend to transform sun direction to body frame using quaternion.
+
+        Returns:
+            [x, y, z] unit vector pointing toward the Sun in ECI frame
+        """
+        if self._cached_sun_dir_eci is not None:
+            # Use cached ECI direction
+            return [float(self._cached_sun_dir_eci[0]), float(self._cached_sun_dir_eci[1]), float(self._cached_sun_dir_eci[2])]
+        else:
+            # Fallback: compute directly
+            sun_eci = self._get_sun_direction_eci()
+            return [float(sun_eci[0]), float(sun_eci[1]), float(sun_eci[2])]
 
     def _get_sun_direction_eci(self) -> NDArray[np.float64]:
         """Get current sun direction in ECI (inertial) frame.

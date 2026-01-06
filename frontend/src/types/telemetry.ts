@@ -64,6 +64,8 @@ export interface EnvironmentState {
   magneticField: [number, number, number];
   /** Sun direction vector in Three.js scene coordinates (unit vector) */
   sunDirection: [number, number, number];
+  /** Sun direction vector in ECI (inertial) frame for body frame transformation */
+  sunDirectionECI: [number, number, number];
   /** True if satellite is illuminated (not in eclipse) */
   isIlluminated: boolean;
 }
