@@ -133,6 +133,18 @@ export function SimulationControls({ telemetryState }: SimulationControlsProps) 
             <p>Dipole (Am2): [{telemetry.actuators.magnetorquers.dipoleMoment.map(d => d.toFixed(3)).join(', ')}]</p>
             <p>Power: {telemetry.actuators.magnetorquers.power.toFixed(2)}W</p>
           </div>
+
+          {telemetry.power && (
+            <div className="telemetry-section">
+              <h4>Power</h4>
+              <p>Eclipse: {telemetry.environment.isIlluminated ? '☀️ Sun' : '🌑 Eclipse'}</p>
+              <p>SOC: {(telemetry.power.soc * 100).toFixed(1)}%</p>
+              <p>Battery: {telemetry.power.batteryEnergy.toFixed(2)} / {telemetry.power.batteryCapacity.toFixed(1)} Wh</p>
+              <p>Generated: {telemetry.power.powerGenerated.toFixed(2)} W</p>
+              <p>Consumed: {telemetry.power.powerConsumed.toFixed(2)} W</p>
+              <p>Net: {telemetry.power.netPower >= 0 ? '+' : ''}{telemetry.power.netPower.toFixed(2)} W</p>
+            </div>
+          )}
         </div>
       )}
     </div>

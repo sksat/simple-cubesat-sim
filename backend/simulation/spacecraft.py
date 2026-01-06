@@ -14,6 +14,7 @@ from backend.control.bdot import BdotController
 from backend.control.attitude_controller import AttitudeController
 from backend.control.rw_unloading import RWUnloadingController
 from backend.dynamics.quaternion import multiply, normalize, rotate_vector, conjugate
+from backend.power import PowerSystem
 
 
 ControlMode = Literal["IDLE", "DETUMBLING", "POINTING", "UNLOADING"]
@@ -101,6 +102,9 @@ class Spacecraft:
         # Previous magnetic field for B-dot calculation
         self._prev_b_field: Optional[NDArray[np.float64]] = None
 
+        # Power system
+        self.power_system = PowerSystem()
+
     @property
     def control_mode(self) -> ControlMode:
         """Get current control mode."""
@@ -149,6 +153,8 @@ class Spacecraft:
         dt: float,
         magnetic_field: Optional[NDArray[np.float64]] = None,
         magnetic_field_inertial: Optional[NDArray[np.float64]] = None,
+        sun_direction_inertial: Optional[NDArray[np.float64]] = None,
+        is_illuminated: bool = True,
     ) -> None:
         """Advance simulation by one time step.
 
@@ -156,6 +162,8 @@ class Spacecraft:
             dt: Time step (seconds)
             magnetic_field: Magnetic field in body frame (T) - deprecated
             magnetic_field_inertial: Magnetic field in inertial frame (T)
+            sun_direction_inertial: Sun direction unit vector in inertial frame
+            is_illuminated: True if satellite is not in eclipse
 
         If magnetic_field_inertial is provided, it will be transformed to
         body frame using the current attitude. This is the preferred method
@@ -186,6 +194,29 @@ class Spacecraft:
 
         # Store magnetic field for next step
         self._prev_b_field = magnetic_field.copy()
+
+        # Update power system
+        if sun_direction_inertial is not None:
+            # Transform sun direction to body frame
+            q_conj = conjugate(self.quaternion)
+            sun_direction_body = rotate_vector(q_conj, sun_direction_inertial)
+        else:
+            # Default: sun in +Z body direction
+            sun_direction_body = np.array([0.0, 0.0, 1.0])
+
+        # Calculate additional power consumption based on control mode
+        additional_power = 0.0
+        if self._control_mode in ("DETUMBLING", "UNLOADING"):
+            additional_power += self.magnetorquer.get_power()
+        if self._control_mode in ("POINTING", "UNLOADING"):
+            additional_power += 0.5  # RW power consumption estimate
+
+        self.power_system.update(
+            dt=dt,
+            sun_direction_body=sun_direction_body,
+            is_illuminated=is_illuminated,
+            additional_consumption=additional_power,
+        )
 
     def _integrate_rk4(
         self,
@@ -300,6 +331,7 @@ class Spacecraft:
             "magnetorquer": self.magnetorquer.get_state(),
             "control_mode": self._control_mode,
             "target_quaternion": self._target_quaternion.copy(),
+            "power": self.power_system.get_state(),
         }
 
     def reset(self) -> None:
@@ -308,5 +340,6 @@ class Spacecraft:
         self.angular_velocity = self._initial_angular_velocity.copy()
         self.reaction_wheel.reset()
         self.magnetorquer.reset()
+        self.power_system.reset()
         self._control_mode = "IDLE"
         self._prev_b_field = None

@@ -37,6 +37,23 @@ export interface EnvironmentState {
   magneticField: [number, number, number];
   /** Sun direction vector in Three.js scene coordinates (unit vector) */
   sunDirection: [number, number, number];
+  /** True if satellite is illuminated (not in eclipse) */
+  isIlluminated: boolean;
+}
+
+export interface PowerState {
+  /** Battery state of charge (0-1) */
+  soc: number;
+  /** Current battery energy (Wh) */
+  batteryEnergy: number;
+  /** Battery capacity (Wh) */
+  batteryCapacity: number;
+  /** Current power generation from solar panels (W) */
+  powerGenerated: number;
+  /** Current power consumption (W) */
+  powerConsumed: number;
+  /** Net power (positive = charging, negative = discharging) (W) */
+  netPower: number;
 }
 
 export interface OrbitState {
@@ -63,6 +80,7 @@ export interface Telemetry {
   control: ControlState;
   environment: EnvironmentState;
   orbit?: OrbitState;
+  power?: PowerState;
 }
 
 export type SimulationState = 'STOPPED' | 'RUNNING' | 'PAUSED';

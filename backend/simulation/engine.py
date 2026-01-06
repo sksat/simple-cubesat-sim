@@ -12,6 +12,7 @@ from typing import Optional, Literal
 from backend.config import Config, get_config
 from backend.simulation.spacecraft import Spacecraft
 from backend.dynamics.orbit import OrbitPropagator
+from backend.power import is_in_eclipse
 
 
 class SimulationState(Enum):
@@ -69,6 +70,9 @@ class SimulationEngine:
         # SGP4 orbit propagator
         self._orbit_propagator = OrbitPropagator()
         self._sim_epoch = datetime.now(timezone.utc)
+
+        # Eclipse status (updated each step)
+        self._is_illuminated = True
 
     @property
     def time_warp(self) -> float:
@@ -133,6 +137,12 @@ class SimulationEngine:
         # Get magnetic field (constant during this macro step)
         b_field_inertial = self.get_magnetic_field()
 
+        # Get sun direction in ECI and eclipse status (constant during this macro step)
+        sun_dir_eci = self._get_sun_direction_eci()
+        sat_pos_eci = self._get_satellite_position_eci()
+        illuminated = not is_in_eclipse(sat_pos_eci, sun_dir_eci)
+        self._is_illuminated = illuminated
+
         # Sub-step if effective_dt is too large
         remaining_dt = effective_dt
         while remaining_dt > 0:
@@ -142,6 +152,8 @@ class SimulationEngine:
             self.spacecraft.step(
                 dt=physics_dt,
                 magnetic_field_inertial=b_field_inertial,
+                sun_direction_inertial=sun_dir_eci,
+                is_illuminated=illuminated,
             )
 
             remaining_dt -= physics_dt
@@ -291,9 +303,12 @@ class SimulationEngine:
             "environment": {
                 "magneticField": self._magnetic_field_inertial.tolist(),
                 "sunDirection": self._get_sun_direction(),
+                "isIlluminated": self._is_illuminated,
             },
 
             "orbit": self.get_orbit_position(),
+
+            "power": sc_state["power"],
         }
 
     def _get_sun_direction(self) -> list[float]:
@@ -311,3 +326,41 @@ class SimulationEngine:
         sim_time = Time(self.get_absolute_time())
         sun_dir = get_sun_direction_threejs(sim_time)
         return list(sun_dir)
+
+    def _get_sun_direction_eci(self) -> NDArray[np.float64]:
+        """Get current sun direction in ECI (inertial) frame.
+
+        Returns:
+            Unit vector pointing toward the Sun in ECI frame
+        """
+        from astropy.time import Time
+        from astropy.coordinates import get_sun
+
+        sim_time = Time(self.get_absolute_time())
+        sun_gcrs = get_sun(sim_time)
+
+        # Get direction vector (already in GCRS which is approximately ECI)
+        cart = sun_gcrs.cartesian
+        x = float(cart.x.value)  # type: ignore[union-attr]
+        y = float(cart.y.value)  # type: ignore[union-attr]
+        z = float(cart.z.value)  # type: ignore[union-attr]
+
+        # Normalize to unit vector
+        r = (x**2 + y**2 + z**2) ** 0.5
+        return np.array([x / r, y / r, z / r])
+
+    def _get_satellite_position_eci(self) -> NDArray[np.float64]:
+        """Get current satellite position in ECI frame.
+
+        Returns:
+            Position vector in ECI frame (km)
+        """
+        # Get position from orbit propagator
+        orbit_state = self._orbit_propagator.propagate(self.sim_time, self._sim_epoch)
+
+        # The orbit propagator returns ECI position
+        return np.array([
+            orbit_state.position_eci[0],
+            orbit_state.position_eci[1],
+            orbit_state.position_eci[2],
+        ])
