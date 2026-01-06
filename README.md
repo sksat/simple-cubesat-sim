@@ -56,11 +56,12 @@ To visualize reaction wheel rotation with a physical motor using Raspberry Pi Pi
    cargo run --release
    ```
 
-2. Enable hardware mode when starting backend:
+2. Start backend (Pico will be auto-detected):
    ```bash
-   ENABLE_PICO_RW=1 uv run uvicorn backend.main:app --reload
+   uv run uvicorn backend.main:app --reload
    ```
 
+Backend will automatically detect and use connected Pico device.
 See [pico-rw-mock/README.md](pico-rw-mock/README.md) for hardware setup details.
 
 ## Development

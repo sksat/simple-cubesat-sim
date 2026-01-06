@@ -122,19 +122,19 @@ class SimulationEngine:
         self._contact_prediction_valid_until: float = 0.0
 
         # Hardware interface (optional - Pico RW controller)
-        # Only enable if ENABLE_PICO_RW environment variable is set
+        # Auto-detect and connect if available (disabled during tests)
         self._pico_rw: Optional[PicoRWController] = None
-        if self._should_enable_pico_rw():
+        if not self._is_running_tests():
             try:
                 max_rw_speed = config.spacecraft.reaction_wheel.max_speed
                 self._pico_rw = PicoRWController(max_rw_speed=max_rw_speed)
                 if self._pico_rw.connect():
                     print(f"Pico RW controller connected (max speed: {max_rw_speed:.1f} rad/s)")
                 else:
-                    print("Pico RW controller not found - running without hardware")
+                    # Silently ignore if not found
                     self._pico_rw = None
-            except Exception as e:
-                print(f"Failed to initialize Pico RW controller: {e}")
+            except Exception:
+                # Silently ignore initialization errors
                 self._pico_rw = None
 
     @property
@@ -155,15 +155,14 @@ class SimulationEngine:
             raise ValueError("time_warp must be positive")
         self._time_warp = time_warp
 
-    def _should_enable_pico_rw(self) -> bool:
-        """Check if Pico RW controller should be enabled.
+    def _is_running_tests(self) -> bool:
+        """Check if code is running under pytest.
 
         Returns:
-            True if ENABLE_PICO_RW environment variable is set to "1" or "true"
+            True if pytest is detected in sys.modules
         """
-        import os
-        enabled = os.environ.get("ENABLE_PICO_RW", "").lower()
-        return enabled in ("1", "true", "yes")
+        import sys
+        return "pytest" in sys.modules
 
     def get_absolute_time(self) -> datetime:
         """Get current absolute simulation time.
