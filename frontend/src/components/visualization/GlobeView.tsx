@@ -5,13 +5,16 @@
  * Uses pure Three.js to avoid WebGPU compatibility issues with globe.gl.
  */
 
-import { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { useRef, useMemo, useState } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars, PerspectiveCamera, Line } from '@react-three/drei';
 import * as THREE from 'three';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Telemetry } from '../../types/telemetry';
 import type { OrbitHistoryPoint } from '../../hooks/useOrbitHistory';
 import { CubeSatModel } from './CubeSatModel';
+
+type ViewCenter = 'earth' | 'satellite';
 
 interface GlobeViewProps {
   telemetry: Telemetry | null;
@@ -21,19 +24,19 @@ interface GlobeViewProps {
 export function GlobeView({ telemetry, orbitHistory }: GlobeViewProps) {
   // Extract orbit data from telemetry
   const orbit = telemetry?.orbit;
+  const [viewCenter, setViewCenter] = useState<ViewCenter>('satellite');
+
+  // Satellite position for camera target
+  const satellitePosition = orbit?.positionThreeJS ?? [0, 0, 0];
 
   return (
     <div className="globe-view" style={{ width: '100%', height: '100%', background: '#000' }}>
       <Canvas>
         <PerspectiveCamera makeDefault position={[0, 0, 4]} fov={45} />
-        <OrbitControls
-          enablePan={false}
-          enableZoom={true}
-          enableRotate={true}
-          minDistance={1.5}
-          maxDistance={10}
-          autoRotate={!telemetry}
-          autoRotateSpeed={0.5}
+        <CameraController
+          viewCenter={viewCenter}
+          satellitePosition={satellitePosition as [number, number, number]}
+          hasTelemetry={!!telemetry}
         />
 
         {/* Lighting */}
@@ -59,8 +62,67 @@ export function GlobeView({ telemetry, orbitHistory }: GlobeViewProps) {
       </Canvas>
 
       {/* Orbit info overlay */}
-      <OrbitOverlay telemetry={telemetry} />
+      <OrbitOverlay
+        telemetry={telemetry}
+        viewCenter={viewCenter}
+        onViewCenterChange={setViewCenter}
+      />
     </div>
+  );
+}
+
+interface CameraControllerProps {
+  viewCenter: ViewCenter;
+  satellitePosition: [number, number, number];
+  hasTelemetry: boolean;
+}
+
+function CameraController({ viewCenter, satellitePosition, hasTelemetry }: CameraControllerProps) {
+  const controlsRef = useRef<OrbitControlsImpl>(null);
+  const { camera } = useThree();
+
+  // Update camera target based on view center
+  useFrame(() => {
+    if (!controlsRef.current) return;
+
+    const controls = controlsRef.current;
+
+    if (viewCenter === 'satellite' && hasTelemetry) {
+      // Smoothly interpolate target to satellite position
+      const targetPos = new THREE.Vector3(...satellitePosition);
+      controls.target.lerp(targetPos, 0.1);
+
+      // Adjust camera to maintain relative distance from satellite
+      const currentDistance = camera.position.distanceTo(controls.target);
+      if (currentDistance > 0.5) {
+        // Gradually zoom in when switching to satellite view
+        const direction = camera.position.clone().sub(controls.target).normalize();
+        const targetDistance = Math.max(0.15, currentDistance * 0.98);
+        camera.position.copy(controls.target).add(direction.multiplyScalar(targetDistance));
+      }
+    } else {
+      // Smoothly return to Earth center
+      controls.target.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+    }
+
+    controls.update();
+  });
+
+  // Dynamic distance limits based on view center
+  const minDistance = viewCenter === 'satellite' ? 0.05 : 1.5;
+  const maxDistance = viewCenter === 'satellite' ? 2 : 10;
+
+  return (
+    <OrbitControls
+      ref={controlsRef}
+      enablePan={false}
+      enableZoom={true}
+      enableRotate={true}
+      minDistance={minDistance}
+      maxDistance={maxDistance}
+      autoRotate={!hasTelemetry && viewCenter === 'earth'}
+      autoRotateSpeed={0.5}
+    />
   );
 }
 
@@ -243,9 +305,11 @@ function GroundTrack({ history }: GroundTrackProps) {
 
 interface OrbitOverlayProps {
   telemetry: Telemetry | null;
+  viewCenter: ViewCenter;
+  onViewCenterChange: (center: ViewCenter) => void;
 }
 
-function OrbitOverlay({ telemetry }: OrbitOverlayProps) {
+function OrbitOverlay({ telemetry, viewCenter, onViewCenterChange }: OrbitOverlayProps) {
   if (!telemetry || !telemetry.orbit) {
     return (
       <div className="orbit-overlay">
@@ -258,6 +322,20 @@ function OrbitOverlay({ telemetry }: OrbitOverlayProps) {
 
   return (
     <div className="orbit-overlay">
+      <div className="view-center-toggle">
+        <button
+          className={viewCenter === 'earth' ? 'active' : ''}
+          onClick={() => onViewCenterChange('earth')}
+        >
+          Earth
+        </button>
+        <button
+          className={viewCenter === 'satellite' ? 'active' : ''}
+          onClick={() => onViewCenterChange('satellite')}
+        >
+          Satellite
+        </button>
+      </div>
       <div className="orbit-position">
         <span>Lat: {latitude.toFixed(2)}°</span>
         <span>Lon: {longitude.toFixed(2)}°</span>
