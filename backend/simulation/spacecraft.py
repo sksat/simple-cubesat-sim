@@ -82,6 +82,8 @@ class Spacecraft:
             inertia=rw_cfg.inertia,
             max_speed=rw_cfg.max_speed,
             max_torque=rw_cfg.max_torque,
+            torque_time_constant=rw_cfg.torque_time_constant,
+            torque_slew_rate=rw_cfg.torque_slew_rate,
         )
         self.magnetorquer = Magnetorquer(max_dipole=mtq_cfg.max_dipole)
 

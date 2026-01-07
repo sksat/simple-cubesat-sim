@@ -11,6 +11,8 @@ export interface Attitude {
 export interface ReactionWheelState {
   speed: [number, number, number];
   torque: [number, number, number];
+  /** Actual motor torque output (after dynamics) */
+  actualTorque: [number, number, number];
   momentum: [number, number, number];
 }
 

@@ -12,6 +12,8 @@ interface TelemetryHistoryPoint {
   angularVelocity: [number, number, number];
   eulerAngles: [number, number, number];
   rwSpeed: [number, number, number];
+  rwTorque: [number, number, number];
+  rwActualTorque: [number, number, number];
   rwMomentum: [number, number, number];
   mtqDipole: [number, number, number];
   attitudeError: number;
@@ -41,6 +43,8 @@ export function useTelemetryHistory(): UseTelemetryHistoryResult {
       angularVelocity: telemetry.attitude.angularVelocity,
       eulerAngles: telemetry.attitude.eulerAngles,
       rwSpeed: telemetry.actuators.reactionWheels.speed,
+      rwTorque: telemetry.actuators.reactionWheels.torque,
+      rwActualTorque: telemetry.actuators.reactionWheels.actualTorque,
       rwMomentum: telemetry.actuators.reactionWheels.momentum,
       mtqDipole: telemetry.actuators.magnetorquers.dipoleMoment,
       attitudeError: telemetry.control.error.attitude,

@@ -468,6 +468,7 @@ class SimulationEngine:
                 "reactionWheels": {
                     "speed": self.spacecraft.reaction_wheel.get_speed().tolist(),
                     "torque": self.spacecraft.reaction_wheel.get_commanded_torque().tolist(),
+                    "actualTorque": self.spacecraft.reaction_wheel.get_actual_torque().tolist(),
                     "momentum": self.spacecraft.reaction_wheel.get_momentum().tolist(),
                 },
                 "magnetorquers": {

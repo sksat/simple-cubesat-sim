@@ -13,9 +13,12 @@ from typing import Optional
 class ReactionWheelConfig:
     """Reaction wheel parameters."""
     inertia: float = 3.33e-6  # Rotor inertia [kg*m^2]
-    max_speed: float = 900.0  # Max speed [rad/s] (~8600 RPM)
-    max_torque: float = 0.004  # Max torque [Nm] (4 mNm)
+    max_speed: float = 700.0  # Max speed [rad/s] (~6700 RPM)
+    max_torque: float = 0.001  # Max torque [Nm] (1 mNm)
     base_power: float = 0.5  # Base power [W]
+    # Motor dynamics
+    torque_time_constant: float = 0.05  # First-order lag time constant [s]
+    torque_slew_rate: Optional[float] = None  # Optional torque slew rate limit [Nm/s]
 
 
 @dataclass
@@ -127,6 +130,12 @@ def load_config(path: Optional[Path] = None) -> Config:
             )
             config.spacecraft.reaction_wheel.max_torque = rw.get(
                 "max_torque", config.spacecraft.reaction_wheel.max_torque
+            )
+            config.spacecraft.reaction_wheel.torque_time_constant = rw.get(
+                "torque_time_constant", config.spacecraft.reaction_wheel.torque_time_constant
+            )
+            config.spacecraft.reaction_wheel.torque_slew_rate = rw.get(
+                "torque_slew_rate", config.spacecraft.reaction_wheel.torque_slew_rate
             )
 
         if "magnetorquer" in sc:

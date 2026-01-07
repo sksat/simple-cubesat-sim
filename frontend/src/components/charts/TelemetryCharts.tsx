@@ -13,6 +13,8 @@ interface TelemetryHistoryPoint {
   angularVelocity: [number, number, number];
   eulerAngles: [number, number, number];
   rwSpeed: [number, number, number];
+  rwTorque: [number, number, number];
+  rwActualTorque: [number, number, number];
   rwMomentum: [number, number, number];
   mtqDipole: [number, number, number];
   attitudeError: number;
@@ -117,8 +119,8 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
     { x: timestamps, y: rwZ, name: 'RW-Z', type: 'scatter', mode: 'lines', line: { color: CHART_COLORS.z, width: 1 } },
   ];
 
-  // RW max speed: 900 rad/s = 8594.37 RPM
-  const RW_MAX_RPM = 900 * 60 / (2 * Math.PI);
+  // RW max speed: 700 rad/s = 6684.51 RPM
+  const RW_MAX_RPM = 700 * 60 / (2 * Math.PI);
 
   const rwSpeedLayout: Partial<Layout> = {
     ...DARK_LAYOUT,
@@ -126,7 +128,7 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
     yaxis: {
       ...DARK_LAYOUT.yaxis,
       title: { text: 'RPM', font: { size: 10 } },
-      range: [-9000, 9000],  // Fixed range with margin above max speed
+      range: [-7000, 7000],  // Fixed range with margin above max speed (700 rad/s)
     },
     shapes: [
       {
@@ -146,6 +148,38 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
         line: { color: '#888', width: 1, dash: 'dash' },
       },
     ],
+  };
+
+  // RW Torque comparison (convert to mNm for readability)
+  const torqueCmdX = filteredHistory.map(h => h.rwTorque[0] * 1000);
+  const torqueCmdY = filteredHistory.map(h => h.rwTorque[1] * 1000);
+  const torqueCmdZ = filteredHistory.map(h => h.rwTorque[2] * 1000);
+  const torqueActX = filteredHistory.map(h => h.rwActualTorque[0] * 1000);
+  const torqueActY = filteredHistory.map(h => h.rwActualTorque[1] * 1000);
+  const torqueActZ = filteredHistory.map(h => h.rwActualTorque[2] * 1000);
+
+  const rwTorqueData: Data[] = [
+    // Commanded torque (dashed)
+    { x: timestamps, y: torqueCmdX, name: 'Cmd-X', type: 'scatter', mode: 'lines', line: { color: CHART_COLORS.x, width: 1, dash: 'dot' }, legendgroup: 'x' },
+    { x: timestamps, y: torqueCmdY, name: 'Cmd-Y', type: 'scatter', mode: 'lines', line: { color: CHART_COLORS.y, width: 1, dash: 'dot' }, legendgroup: 'y' },
+    { x: timestamps, y: torqueCmdZ, name: 'Cmd-Z', type: 'scatter', mode: 'lines', line: { color: CHART_COLORS.z, width: 1, dash: 'dot' }, legendgroup: 'z' },
+    // Actual torque (solid)
+    { x: timestamps, y: torqueActX, name: 'Act-X', type: 'scatter', mode: 'lines', line: { color: CHART_COLORS.x, width: 1.5 }, legendgroup: 'x' },
+    { x: timestamps, y: torqueActY, name: 'Act-Y', type: 'scatter', mode: 'lines', line: { color: CHART_COLORS.y, width: 1.5 }, legendgroup: 'y' },
+    { x: timestamps, y: torqueActZ, name: 'Act-Z', type: 'scatter', mode: 'lines', line: { color: CHART_COLORS.z, width: 1.5 }, legendgroup: 'z' },
+  ];
+
+  const rwTorqueLayout: Partial<Layout> = {
+    ...DARK_LAYOUT,
+    title: { text: 'RW Torque (Cmd vs Actual)', font: { size: 12 } },
+    yaxis: {
+      ...DARK_LAYOUT.yaxis,
+      title: { text: 'mNm', font: { size: 10 } },
+    },
+    legend: {
+      ...DARK_LAYOUT.legend,
+      tracegroupgap: 0,
+    },
   };
 
   return (
@@ -175,6 +209,15 @@ export function TelemetryCharts({ history }: TelemetryChartsProps) {
           <Plot
             data={rwSpeedData}
             layout={rwSpeedLayout}
+            config={{ displayModeBar: false, responsive: true }}
+            style={{ width: '100%', height: '100%' }}
+            useResizeHandler
+          />
+        </div>
+        <div className="chart-container">
+          <Plot
+            data={rwTorqueData}
+            layout={rwTorqueLayout}
             config={{ displayModeBar: false, responsive: true }}
             style={{ width: '100%', height: '100%' }}
             useResizeHandler

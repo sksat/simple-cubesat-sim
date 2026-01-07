@@ -98,16 +98,23 @@ class TestReactionWheelDynamics:
         np.testing.assert_array_almost_equal(momentum, expected_momentum)
 
     def test_reaction_torque_on_spacecraft(self):
-        """Reaction torque on spacecraft is opposite to wheel torque."""
+        """Reaction torque on spacecraft is opposite to wheel torque.
+
+        Uses torque_time_constant=0 for instant response to test basic physics.
+        """
         rw = ReactionWheel(
             inertia=1e-4,
             max_speed=6000 * 2 * np.pi / 60,
             max_torque=0.001,
+            torque_time_constant=0,  # Instant response for physics test
         )
 
         # Command torque on wheel
         wheel_torque = np.array([0.0005, 0.0, 0.0])
         rw.command_torque(wheel_torque)
+
+        # Need to call update to apply the torque (even with instant response)
+        rw.update(dt=0.01)
 
         # Reaction on spacecraft should be opposite
         spacecraft_torque = rw.get_torque_on_spacecraft()
@@ -468,3 +475,192 @@ class TestReactionWheelAttitudeChange:
         # The rotation should be primarily around Z axis
         # For small rotations: q ≈ [0, 0, sin(θ/2), cos(θ/2)]
         assert np.abs(q[2]) > 0.01, "Should have rotated around Z axis"
+
+
+class TestReactionWheelMotorDynamics:
+    """Tests for motor torque response dynamics."""
+
+    def test_torque_lag_initial_response(self):
+        """Actual torque should lag commanded torque initially."""
+        rw = ReactionWheel(
+            inertia=1e-4,
+            max_speed=6000 * 2 * np.pi / 60,
+            max_torque=0.001,
+            torque_time_constant=0.05,  # 50ms time constant
+        )
+
+        # Command step torque
+        rw.command_torque(np.array([0.001, 0.0, 0.0]))
+
+        # After one update, actual should be less than commanded
+        rw.update(dt=0.01)
+        actual = rw.get_actual_torque()
+        commanded = rw.get_commanded_torque()
+
+        assert actual[0] < commanded[0], "Actual torque should lag commanded"
+        assert actual[0] > 0, "Actual torque should be positive"
+
+    def test_torque_converges_to_commanded(self):
+        """Actual torque should converge to commanded over time."""
+        tau = 0.05
+        rw = ReactionWheel(
+            inertia=1e-4,
+            max_speed=6000 * 2 * np.pi / 60,
+            max_torque=0.001,
+            torque_time_constant=tau,
+        )
+
+        rw.command_torque(np.array([0.001, 0.0, 0.0]))
+
+        # After 5*tau (~5 time constants), should be within 1% of commanded
+        for _ in range(50):  # 50 * 0.01s = 0.5s = 10*tau
+            rw.update(dt=0.01)
+
+        actual = rw.get_actual_torque()
+        commanded = rw.get_commanded_torque()
+        np.testing.assert_array_almost_equal(actual, commanded, decimal=5)
+
+    def test_time_constant_affects_response_rate(self):
+        """Larger time constant should result in slower response."""
+        rw_fast = ReactionWheel(
+            inertia=1e-4,
+            max_speed=6000 * 2 * np.pi / 60,
+            max_torque=0.001,
+            torque_time_constant=0.01,  # 10ms - fast
+        )
+        rw_slow = ReactionWheel(
+            inertia=1e-4,
+            max_speed=6000 * 2 * np.pi / 60,
+            max_torque=0.001,
+            torque_time_constant=0.1,  # 100ms - slow
+        )
+
+        torque_cmd = np.array([0.001, 0.0, 0.0])
+        rw_fast.command_torque(torque_cmd)
+        rw_slow.command_torque(torque_cmd)
+
+        rw_fast.update(dt=0.01)
+        rw_slow.update(dt=0.01)
+
+        # Fast RW should have higher actual torque
+        assert rw_fast.get_actual_torque()[0] > rw_slow.get_actual_torque()[0]
+
+    def test_zero_time_constant_instant_response(self):
+        """Zero time constant should give instant response."""
+        rw = ReactionWheel(
+            inertia=1e-4,
+            max_speed=6000 * 2 * np.pi / 60,
+            max_torque=0.001,
+            torque_time_constant=0.0,  # Instant response
+        )
+
+        rw.command_torque(np.array([0.001, 0.0, 0.0]))
+        rw.update(dt=0.01)
+
+        np.testing.assert_array_almost_equal(
+            rw.get_actual_torque(),
+            rw.get_commanded_torque(),
+        )
+
+    def test_torque_reversal_dynamics(self):
+        """Torque reversal should show smooth transition."""
+        rw = ReactionWheel(
+            inertia=1e-4,
+            max_speed=6000 * 2 * np.pi / 60,
+            max_torque=0.001,
+            torque_time_constant=0.05,
+        )
+
+        # First, establish positive torque
+        rw.command_torque(np.array([0.001, 0.0, 0.0]))
+        for _ in range(100):  # 1 second, well past settling
+            rw.update(dt=0.01)
+
+        # Actual should be at commanded
+        actual_before = rw.get_actual_torque()[0]
+        assert np.isclose(actual_before, 0.001, rtol=0.01)
+
+        # Now reverse
+        rw.command_torque(np.array([-0.001, 0.0, 0.0]))
+        rw.update(dt=0.01)
+
+        # Actual torque should still be positive but decreasing
+        actual = rw.get_actual_torque()
+        assert actual[0] > 0, "Should still be positive after one step"
+        assert actual[0] < actual_before, "Should be decreasing"
+
+    def test_slew_rate_limit(self):
+        """Slew rate limit should constrain torque change rate."""
+        slew_rate = 0.04  # 40 mNm/s
+        dt = 0.01
+
+        rw = ReactionWheel(
+            inertia=1e-4,
+            max_speed=6000 * 2 * np.pi / 60,
+            max_torque=0.001,
+            torque_time_constant=0.001,  # Very fast lag (almost instant)
+            torque_slew_rate=slew_rate,
+        )
+
+        rw.command_torque(np.array([0.001, 0.0, 0.0]))
+        rw.update(dt=dt)
+
+        # Maximum change should be slew_rate * dt = 0.04 * 0.01 = 0.0004 Nm
+        max_delta = slew_rate * dt
+        actual = rw.get_actual_torque()
+        assert actual[0] <= max_delta + 1e-10
+
+    def test_spacecraft_sees_actual_torque(self):
+        """Spacecraft torque should reflect actual, not commanded."""
+        rw = ReactionWheel(
+            inertia=1e-4,
+            max_speed=6000 * 2 * np.pi / 60,
+            max_torque=0.001,
+            torque_time_constant=0.05,
+        )
+
+        rw.command_torque(np.array([0.001, 0.0, 0.0]))
+        rw.update(dt=0.01)
+
+        sc_torque = rw.get_torque_on_spacecraft()
+        actual = rw.get_actual_torque()
+
+        # Spacecraft sees negative of actual torque (Newton's 3rd law)
+        np.testing.assert_array_almost_equal(sc_torque, -actual)
+
+    def test_actual_torque_in_state(self):
+        """get_state should include actualTorque."""
+        rw = ReactionWheel(
+            inertia=1e-4,
+            max_speed=6000 * 2 * np.pi / 60,
+            max_torque=0.001,
+            torque_time_constant=0.05,
+        )
+
+        rw.command_torque(np.array([0.0005, 0.0, 0.0]))
+        rw.update(dt=0.01)
+
+        state = rw.get_state()
+        assert "actualTorque" in state
+        assert len(state["actualTorque"]) == 3
+
+    def test_reset_clears_actual_torque(self):
+        """reset should clear actual torque as well."""
+        rw = ReactionWheel(
+            inertia=1e-4,
+            max_speed=6000 * 2 * np.pi / 60,
+            max_torque=0.001,
+            torque_time_constant=0.05,
+        )
+
+        # Build up actual torque
+        rw.command_torque(np.array([0.001, 0.001, 0.001]))
+        for _ in range(100):
+            rw.update(dt=0.01)
+
+        # Reset
+        rw.reset()
+
+        np.testing.assert_array_almost_equal(
+            rw.get_actual_torque(), [0.0, 0.0, 0.0]
+        )
