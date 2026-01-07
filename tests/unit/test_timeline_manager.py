@@ -14,7 +14,7 @@ class TestTimelineManager:
         action = manager.add_action(
             time=100.0,
             action_type=TimelineActionType.CONTROL_MODE,
-            params={"mode": "POINTING"},
+            params={"mode": "3Axis"},
             current_sim_time=0.0,
         )
         assert action.id is not None
@@ -26,7 +26,7 @@ class TestTimelineManager:
         action = manager.add_action(
             time=100.0,
             action_type="control_mode",
-            params={"mode": "POINTING"},
+            params={"mode": "3Axis"},
             current_sim_time=0.0,
         )
         assert action.action_type == TimelineActionType.CONTROL_MODE
@@ -38,7 +38,7 @@ class TestTimelineManager:
             manager.add_action(
                 time=50.0,
                 action_type=TimelineActionType.CONTROL_MODE,
-                params={"mode": "POINTING"},
+                params={"mode": "3Axis"},
                 current_sim_time=100.0,
             )
 
@@ -50,7 +50,7 @@ class TestTimelineManager:
         manager.add_action(
             time=300.0,
             action_type=TimelineActionType.CONTROL_MODE,
-            params={"mode": "IDLE"},
+            params={"mode": "Idle"},
             current_sim_time=0.0,
         )
         manager.add_action(

@@ -17,25 +17,25 @@ class TestTimelineExecution:
         action = engine.add_timeline_action(
             time=1.0,
             action_type="control_mode",
-            params={"mode": "POINTING"},
+            params={"mode": "3Axis"},
         )
         assert action["actionType"] == "control_mode"
         assert not action["executed"]
 
-        # Initially in IDLE mode
-        assert engine.spacecraft.control_mode == "IDLE"
+        # Initially in Idle mode
+        assert engine.spacecraft.control_mode == "Idle"
 
         # Step until past t=1.0s
         while engine.sim_time < 1.5:
             engine.step()
 
         # Mode should have changed
-        assert engine.spacecraft.control_mode == "POINTING"
+        assert engine.spacecraft.control_mode == "3Axis"
 
     def test_pointing_mode_action_executes(self):
         """Pointing mode action should change pointing target."""
         engine = SimulationEngine()
-        engine.set_control_mode("POINTING")
+        engine.set_control_mode("3Axis")
         engine.start()
 
         # Schedule pointing mode change at t=0.5s
@@ -85,12 +85,12 @@ class TestTimelineExecution:
         engine.add_timeline_action(
             time=1.0,
             action_type="control_mode",
-            params={"mode": "POINTING"},
+            params={"mode": "3Axis"},
         )
         engine.add_timeline_action(
             time=0.5,
             action_type="control_mode",
-            params={"mode": "DETUMBLING"},
+            params={"mode": "Detumbling"},
         )
 
         # Step until after t=0.5s but before t=1.0s
@@ -98,14 +98,14 @@ class TestTimelineExecution:
             engine.step()
 
         # First action (t=0.5s) should have executed
-        assert engine.spacecraft.control_mode == "DETUMBLING"
+        assert engine.spacecraft.control_mode == "Detumbling"
 
         # Step past t=1.0s
         while engine.sim_time < 1.5:
             engine.step()
 
         # Second action should have executed
-        assert engine.spacecraft.control_mode == "POINTING"
+        assert engine.spacecraft.control_mode == "3Axis"
 
     def test_action_removal_prevents_execution(self):
         """Removed actions should not execute."""
@@ -115,7 +115,7 @@ class TestTimelineExecution:
         action = engine.add_timeline_action(
             time=0.5,
             action_type="control_mode",
-            params={"mode": "POINTING"},
+            params={"mode": "3Axis"},
         )
 
         # Remove the action
@@ -126,8 +126,8 @@ class TestTimelineExecution:
         while engine.sim_time < 1.0:
             engine.step()
 
-        # Mode should still be IDLE
-        assert engine.spacecraft.control_mode == "IDLE"
+        # Mode should still be Idle
+        assert engine.spacecraft.control_mode == "Idle"
 
     def test_action_in_past_raises_error(self):
         """Cannot schedule action in the past."""
@@ -143,7 +143,7 @@ class TestTimelineExecution:
             engine.add_timeline_action(
                 time=0.5,
                 action_type="control_mode",
-                params={"mode": "POINTING"},
+                params={"mode": "3Axis"},
             )
 
     def test_reset_clears_timeline(self):
@@ -154,7 +154,7 @@ class TestTimelineExecution:
         engine.add_timeline_action(
             time=10.0,
             action_type="control_mode",
-            params={"mode": "POINTING"},
+            params={"mode": "3Axis"},
         )
 
         assert len(engine.get_pending_actions()) == 1
@@ -189,7 +189,7 @@ class TestTimelineTelemetry:
         engine.add_timeline_action(
             time=100.0,
             action_type="control_mode",
-            params={"mode": "POINTING"},
+            params={"mode": "3Axis"},
         )
         engine.add_timeline_action(
             time=200.0,
@@ -218,7 +218,7 @@ class TestTimelineTelemetry:
         action = engine.add_timeline_action(
             time=100.0,
             action_type="control_mode",
-            params={"mode": "POINTING"},
+            params={"mode": "3Axis"},
         )
 
         telemetry = engine.get_telemetry()
@@ -236,7 +236,7 @@ class TestTimelineTelemetry:
         engine.add_timeline_action(
             time=0.5,
             action_type="control_mode",
-            params={"mode": "POINTING"},
+            params={"mode": "3Axis"},
         )
 
         # Before execution

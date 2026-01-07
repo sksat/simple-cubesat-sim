@@ -7,12 +7,12 @@ from backend.simulation.engine import SimulationEngine
 
 
 class TestAutoUnloading:
-    """Test automatic RW unloading during POINTING mode."""
+    """Test automatic RW unloading during 3Axis mode."""
 
     def test_auto_unloading_triggers_on_high_speed(self):
         """Test that unloading automatically triggers when RW speed exceeds threshold."""
         engine = SimulationEngine()
-        engine.spacecraft.set_control_mode("POINTING")
+        engine.spacecraft.set_control_mode("3Axis")
         engine.start()
 
         # Run simulation until RW speeds up significantly
@@ -34,7 +34,7 @@ class TestAutoUnloading:
     def test_auto_unloading_activates_and_deactivates(self):
         """Test that auto-unloading correctly activates and deactivates."""
         engine = SimulationEngine()
-        engine.spacecraft.set_control_mode("POINTING")
+        engine.spacecraft.set_control_mode("3Axis")
 
         # Set more aggressive thresholds
         engine.spacecraft._auto_unloading.upper_threshold = np.array([700.0] * 3)
@@ -70,7 +70,7 @@ class TestAutoUnloading:
     def test_auto_unloading_state_transitions(self):
         """Test that unloading state machine transitions correctly."""
         engine = SimulationEngine()
-        engine.spacecraft.set_control_mode("POINTING")
+        engine.spacecraft.set_control_mode("3Axis")
 
         # Set aggressive thresholds to trigger quickly
         engine.spacecraft._auto_unloading.upper_threshold = np.array([400.0] * 3)
@@ -94,34 +94,17 @@ class TestAutoUnloading:
         assert len(state_changes) > 0, "Auto-unloading should activate"
         print(f"Unloading activated at step {state_changes[0]}")
 
-    def test_manual_unloading_mode_still_works(self):
-        """Test that manual UNLOADING mode still works as before."""
+    def test_is_unloading_flag_in_state(self):
+        """Test that is_unloading flag is included in spacecraft state."""
         engine = SimulationEngine()
-        engine.spacecraft.set_control_mode("POINTING")
+        engine.spacecraft.set_control_mode("3Axis")
         engine.start()
 
-        # Let RW speed up
+        # Run simulation
         for _ in range(50):
             engine.step()
 
-        # Switch to manual UNLOADING mode
-        engine.spacecraft.set_control_mode("UNLOADING")
-
-        initial_momentum = np.linalg.norm(engine.spacecraft.reaction_wheel.get_momentum())
-
-        # Run unloading
-        for _ in range(100):
-            engine.step()
-
-        final_momentum = np.linalg.norm(engine.spacecraft.reaction_wheel.get_momentum())
-
-        # Momentum may not decrease significantly due to attitude control
-        # running simultaneously, but it should not increase dramatically
-        print(f"Initial momentum: {initial_momentum:.6f} Nms")
-        print(f"Final momentum: {final_momentum:.6f} Nms")
-
-        # Check that momentum doesn't increase by more than 50%
-        # (allowing for attitude control adding momentum)
-        assert final_momentum < initial_momentum * 1.5, \
-            f"UNLOADING mode should prevent large momentum increases: " \
-            f"{initial_momentum:.6f} -> {final_momentum:.6f}"
+        # Check that is_unloading is in state
+        state = engine.spacecraft.get_state()
+        assert "is_unloading" in state, "is_unloading should be in state"
+        assert isinstance(state["is_unloading"], bool), "is_unloading should be bool"

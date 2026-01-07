@@ -251,7 +251,7 @@ async def handle_mode_change(
     mode = message.get("mode")
     params = message.get("params", {})
 
-    if mode in ["IDLE", "DETUMBLING", "POINTING", "UNLOADING"]:
+    if mode in ["Idle", "Detumbling", "3Axis"]:
         engine.set_control_mode(mode)
 
         # Handle pointing mode configuration
@@ -307,7 +307,7 @@ async def handle_timeline(
     Message formats:
         Add action:
             {"type": "timeline", "action": "add", "time": 1234.5,
-             "actionType": "control_mode", "params": {"mode": "POINTING"}}
+             "actionType": "control_mode", "params": {"mode": "3Axis"}}
         Remove action:
             {"type": "timeline", "action": "remove", "actionId": "uuid"}
         Refresh contact:

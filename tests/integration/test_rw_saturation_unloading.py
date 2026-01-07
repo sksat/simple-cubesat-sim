@@ -12,7 +12,7 @@ class TestRWSaturationUnloading:
     def test_single_axis_saturation_and_unload(self):
         """Test unloading after a single RW axis saturates."""
         engine = SimulationEngine()
-        engine.spacecraft.set_control_mode("POINTING")
+        engine.spacecraft.set_control_mode("3Axis")
 
         # Set aggressive threshold to trigger unloading quickly
         engine.spacecraft._auto_unloading.upper_threshold = np.array([800.0] * 3)
@@ -68,7 +68,7 @@ class TestRWSaturationUnloading:
     def test_three_axis_saturation_and_unload(self):
         """Test unloading behavior when all three axes are saturated."""
         engine = SimulationEngine()
-        engine.spacecraft.set_control_mode("POINTING")
+        engine.spacecraft.set_control_mode("3Axis")
 
         # Very aggressive to reach saturation quickly
         engine.spacecraft._auto_unloading.upper_threshold = np.array([850.0] * 3)
@@ -128,7 +128,7 @@ class TestRWSaturationUnloading:
     def test_unloading_gain_effectiveness(self):
         """Test that torque-based unloading avoids MTQ saturation."""
         engine = SimulationEngine()
-        engine.spacecraft.set_control_mode("POINTING")
+        engine.spacecraft.set_control_mode("3Axis")
 
         # Use default thresholds (±720 rad/s)
         engine.start()
@@ -157,7 +157,7 @@ class TestRWSaturationUnloading:
     def test_negative_saturation_recovery(self):
         """Test recovery when multiple axes saturate in negative direction."""
         engine = SimulationEngine()
-        engine.spacecraft.set_control_mode("POINTING")
+        engine.spacecraft.set_control_mode("3Axis")
 
         # Set negative initial RW speeds (near saturation)
         engine.spacecraft.reaction_wheel._speed = np.array([-850.0, -850.0, 0.0])
@@ -214,7 +214,7 @@ class TestRWSaturationUnloading:
     def test_natural_negative_saturation(self):
         """Test if system naturally recovers from negative saturation during POINTING."""
         engine = SimulationEngine()
-        engine.spacecraft.set_control_mode("POINTING")
+        engine.spacecraft.set_control_mode("3Axis")
 
         # Use default thresholds (±720 rad/s)
         engine.start()

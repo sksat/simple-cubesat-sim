@@ -18,7 +18,7 @@ from backend.dynamics.quaternion import multiply, normalize, rotate_vector, conj
 from backend.power import PowerSystem
 
 
-ControlMode = Literal["IDLE", "DETUMBLING", "POINTING", "UNLOADING"]
+ControlMode = Literal["Idle", "Detumbling", "3Axis"]
 
 
 class Spacecraft:
@@ -115,7 +115,7 @@ class Spacecraft:
         )
 
         # Control mode
-        self._control_mode: ControlMode = "IDLE"
+        self._control_mode: ControlMode = "Idle"
         self._target_quaternion = np.array([0.0, 0.0, 0.0, 1.0])
 
         # Previous magnetic field for B-dot calculation
@@ -133,7 +133,7 @@ class Spacecraft:
         """Set control mode.
 
         Args:
-            mode: Control mode ("IDLE", "DETUMBLING", "POINTING", "UNLOADING")
+            mode: Control mode ("Idle", "Detumbling", "3Axis")
         """
         self._control_mode = mode
 
@@ -225,10 +225,13 @@ class Spacecraft:
 
         # Calculate additional power consumption based on control mode
         additional_power = 0.0
-        if self._control_mode in ("DETUMBLING", "UNLOADING"):
+        if self._control_mode == "Detumbling":
             additional_power += self.magnetorquer.get_power()
-        if self._control_mode in ("POINTING", "UNLOADING"):
+        if self._control_mode == "3Axis":
             additional_power += 0.5  # RW power consumption estimate
+            # Add MTQ power when auto-unloading is active
+            if self._auto_unloading.is_active():
+                additional_power += self.magnetorquer.get_power()
 
         self.power_system.update(
             dt=dt,
@@ -299,12 +302,12 @@ class Spacecraft:
             dt: Time step (seconds)
             magnetic_field: Magnetic field in body frame (T)
         """
-        if self._control_mode == "IDLE":
+        if self._control_mode == "Idle":
             # No control commands
             self.magnetorquer.command(np.array([0.0, 0.0, 0.0]))
             self.reaction_wheel.command_torque(np.array([0.0, 0.0, 0.0]))
 
-        elif self._control_mode == "DETUMBLING":
+        elif self._control_mode == "Detumbling":
             # B-dot control using MTQ
             if self._prev_b_field is not None:
                 b_dot = (magnetic_field - self._prev_b_field) / dt
@@ -314,8 +317,8 @@ class Spacecraft:
             # Zero RW torque
             self.reaction_wheel.command_torque(np.array([0.0, 0.0, 0.0]))
 
-        elif self._control_mode == "POINTING":
-            # Attitude control using RW
+        elif self._control_mode == "3Axis":
+            # 3-axis attitude control using RW with automatic unloading
             torque = self._attitude_controller.compute(
                 self.quaternion, self._target_quaternion, self.angular_velocity
             )
@@ -351,18 +354,6 @@ class Spacecraft:
                 # No unloading needed
                 self.magnetorquer.command(np.array([0.0, 0.0, 0.0]))
 
-        elif self._control_mode == "UNLOADING":
-            # RW momentum unloading using MTQ
-            h_rw = self.reaction_wheel.get_momentum()
-            dipole = self._unloading_controller.compute(h_rw, magnetic_field)
-            self.magnetorquer.command(dipole)
-
-            # Also run attitude control
-            torque = self._attitude_controller.compute(
-                self.quaternion, self._target_quaternion, self.angular_velocity
-            )
-            self.reaction_wheel.command_torque(-torque)
-
     def get_state(self) -> dict:
         """Get complete spacecraft state.
 
@@ -375,6 +366,7 @@ class Spacecraft:
             "reaction_wheel": self.reaction_wheel.get_state(),
             "magnetorquer": self.magnetorquer.get_state(),
             "control_mode": self._control_mode,
+            "is_unloading": self._auto_unloading.is_active(),
             "target_quaternion": self._target_quaternion.copy(),
             "power": self.power_system.get_state(),
         }
@@ -386,5 +378,5 @@ class Spacecraft:
         self.reaction_wheel.reset()
         self.magnetorquer.reset()
         self.power_system.reset()
-        self._control_mode = "IDLE"
+        self._control_mode = "Idle"
         self._prev_b_field = None

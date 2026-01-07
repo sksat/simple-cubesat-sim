@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Panel, Group, Separator } from 'react-resizable-panels'
 import { SimulationControls } from './components/SimulationControls'
 import { TimelinePanel } from './components/timeline'
-import { PointingConfigPanel } from './components/PointingConfigPanel'
 import { RightPanel } from './components/RightPanel'
 import { SatelliteView } from './components/visualization/SatelliteView'
 import { GlobeView } from './components/visualization/GlobeView'
@@ -50,7 +49,6 @@ function App() {
       <main className="app-main">
         <aside className="sidebar">
           <SimulationControls telemetryState={telemetryState} />
-          <PointingConfigPanel isConnected={telemetryState.isConnected} />
         </aside>
 
         <div className="content-area">

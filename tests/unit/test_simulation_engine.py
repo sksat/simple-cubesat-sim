@@ -243,9 +243,9 @@ class TestSimulationEngineControlMode:
         """Should be able to set control mode."""
         engine = SimulationEngine()
 
-        engine.set_control_mode("DETUMBLING")
+        engine.set_control_mode("Detumbling")
 
-        assert engine.spacecraft.control_mode == "DETUMBLING"
+        assert engine.spacecraft.control_mode == "Detumbling"
 
     def test_set_target_attitude(self):
         """Should be able to set target attitude."""
@@ -279,7 +279,7 @@ class TestSimulationEngineMagneticField:
         """Magnetic field should be used in simulation step."""
         engine = SimulationEngine()
         engine.spacecraft.angular_velocity = np.array([0.1, 0.05, -0.08])
-        engine.set_control_mode("DETUMBLING")
+        engine.set_control_mode("Detumbling")
         engine.start()
 
         # Run for some steps

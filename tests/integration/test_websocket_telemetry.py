@@ -101,7 +101,7 @@ class TestTelemetryJSONSerialization:
 
     def test_all_control_modes_produce_serializable_telemetry(self):
         """All control modes must produce JSON-serializable telemetry."""
-        for mode in ["IDLE", "DETUMBLING", "POINTING", "UNLOADING"]:
+        for mode in ["Idle", "Detumbling", "3Axis"]:
             engine = SimulationEngine()
             engine.set_control_mode(mode)
             engine.start()
@@ -120,7 +120,7 @@ class TestTelemetryJSONSerialization:
         """All pointing modes must produce JSON-serializable telemetry."""
         for pointing_mode in ["MANUAL", "SUN", "NADIR", "GROUND_STATION"]:
             engine = SimulationEngine()
-            engine.set_control_mode("POINTING")
+            engine.set_control_mode("3Axis")
             engine.set_pointing_mode(pointing_mode)
             engine.start()
 

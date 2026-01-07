@@ -229,8 +229,8 @@ class SimulationEngine:
         self._cached_sun_dir_eci = sun_dir_eci
         self._cached_dcm_eci_to_ecef = dcm_eci_to_ecef
 
-        # Calculate target quaternion for POINTING mode
-        if self.spacecraft.control_mode == "POINTING" and self._pointing_mode != "MANUAL":
+        # Calculate target quaternion for 3Axis mode
+        if self.spacecraft.control_mode == "3Axis" and self._pointing_mode != "MANUAL":
             self._update_target_attitude(sat_pos_eci, sun_dir_eci, dcm_eci_to_ecef)
 
         # Ground station visibility (fast calculation)
@@ -280,12 +280,12 @@ class SimulationEngine:
 
     def set_control_mode(
         self,
-        mode: Literal["IDLE", "DETUMBLING", "POINTING", "UNLOADING"],
+        mode: Literal["Idle", "Detumbling", "3Axis"],
     ) -> None:
         """Set spacecraft control mode.
 
         Args:
-            mode: Control mode
+            mode: Control mode ("Idle", "Detumbling", "3Axis")
         """
         self.spacecraft.set_control_mode(mode)
 
@@ -479,6 +479,7 @@ class SimulationEngine:
 
             "control": {
                 "mode": self.spacecraft.control_mode,
+                "isUnloading": sc_state.get("is_unloading", False),
                 "pointingMode": self._pointing_mode,
                 "targetQuaternion": sc_state["target_quaternion"].tolist(),
                 "error": {
@@ -673,7 +674,7 @@ class SimulationEngine:
             action: TimelineAction to execute
         """
         if action.action_type == TimelineActionType.CONTROL_MODE:
-            mode = action.params.get("mode", "IDLE")
+            mode = action.params.get("mode", "Idle")
             self.set_control_mode(mode)
         elif action.action_type == TimelineActionType.POINTING_MODE:
             mode = action.params.get("mode", "MANUAL")

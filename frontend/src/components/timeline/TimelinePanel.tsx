@@ -174,7 +174,7 @@ function AddActionForm({ currentTime, nextContact, onAdd, onCancel }: AddActionF
   const [timeOffset, setTimeOffset] = useState(60);
   const [useContactRelative, setUseContactRelative] = useState(false);
   const [contactOffset, setContactOffset] = useState(0);
-  const [mode, setMode] = useState('POINTING');
+  const [mode, setMode] = useState('3Axis');
   const [latitude, setLatitude] = useState(35.0);
   const [longitude, setLongitude] = useState(139.0);
 
@@ -245,10 +245,9 @@ function AddActionForm({ currentTime, nextContact, onAdd, onCancel }: AddActionF
         <div className="form-row">
           <label>Mode:</label>
           <select value={mode} onChange={e => setMode(e.target.value)}>
-            <option value="IDLE">Idle</option>
-            <option value="DETUMBLING">Detumbling</option>
-            <option value="POINTING">Pointing</option>
-            <option value="UNLOADING">Unloading</option>
+            <option value="Idle">Idle</option>
+            <option value="Detumbling">Detumbling</option>
+            <option value="3Axis">3Axis</option>
           </select>
         </div>
       )}

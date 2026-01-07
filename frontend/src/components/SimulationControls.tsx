@@ -1,9 +1,21 @@
 /**
  * Simulation control panel component.
+ * Includes mode selection and axis configuration for 3Axis mode.
  */
 
-import type { ControlMode, PointingMode, Telemetry, SimulationState, ImagingTarget } from '../types/telemetry';
+import { useState } from 'react';
+import type {
+  ControlMode,
+  PointingMode,
+  Telemetry,
+  SimulationState,
+  ImagingTarget,
+  TargetDirection,
+  BodyAxis,
+  PointingConfig,
+} from '../types/telemetry';
 import { TLESettings } from './TLESettings';
+import { telemetryWS } from '../services/websocket';
 
 interface ControlModeOptions {
   pointingMode?: PointingMode;
@@ -27,6 +39,73 @@ interface SimulationControlsProps {
   telemetryState: TelemetryState;
 }
 
+// Body axis options
+const BODY_AXES: { label: string; value: BodyAxis }[] = [
+  { label: '+X', value: [1, 0, 0] },
+  { label: '-X', value: [-1, 0, 0] },
+  { label: '+Y', value: [0, 1, 0] },
+  { label: '-Y', value: [0, -1, 0] },
+  { label: '+Z', value: [0, 0, 1] },
+  { label: '-Z', value: [0, 0, -1] },
+];
+
+// Target direction options
+const TARGET_DIRECTIONS: { label: string; value: TargetDirection }[] = [
+  { label: 'Sun', value: 'SUN' },
+  { label: 'Nadir', value: 'EARTH_CENTER' },
+  { label: 'Ground Station', value: 'GROUND_STATION' },
+  { label: 'Imaging Target', value: 'IMAGING_TARGET' },
+  { label: 'Velocity', value: 'VELOCITY' },
+  { label: 'Orbit Normal', value: 'ORBIT_NORMAL' },
+];
+
+// Preset configurations
+const PRESETS: { name: string; config: PointingConfig }[] = [
+  {
+    name: 'SUN',
+    config: {
+      mainTarget: 'SUN',
+      mainBodyAxis: [0, 0, 1],  // +Z
+      subTarget: 'EARTH_CENTER',
+      subBodyAxis: [1, 0, 0],  // +X
+    },
+  },
+  {
+    name: 'NADIR',
+    config: {
+      mainTarget: 'EARTH_CENTER',
+      mainBodyAxis: [0, 0, -1],  // -Z
+      subTarget: 'VELOCITY',
+      subBodyAxis: [1, 0, 0],  // +X
+    },
+  },
+  {
+    name: 'GS',
+    config: {
+      mainTarget: 'GROUND_STATION',
+      mainBodyAxis: [0, 0, -1],  // -Z
+      subTarget: 'VELOCITY',
+      subBodyAxis: [1, 0, 0],  // +X
+    },
+  },
+  {
+    name: 'IMG',
+    config: {
+      mainTarget: 'IMAGING_TARGET',
+      mainBodyAxis: [0, 0, -1],  // -Z
+      subTarget: 'VELOCITY',
+      subBodyAxis: [1, 0, 0],  // +X
+    },
+  },
+];
+
+function bodyAxisToString(axis: BodyAxis): string {
+  const match = BODY_AXES.find(a =>
+    a.value[0] === axis[0] && a.value[1] === axis[1] && a.value[2] === axis[2]
+  );
+  return match?.label || 'Unknown';
+}
+
 export function SimulationControls({ telemetryState }: SimulationControlsProps) {
   const {
     telemetry,
@@ -40,26 +119,47 @@ export function SimulationControls({ telemetryState }: SimulationControlsProps) 
     setTimeWarp,
   } = telemetryState;
 
+  // Axis configuration state
+  const [mainTarget, setMainTarget] = useState<TargetDirection>('SUN');
+  const [mainBodyAxis, setMainBodyAxis] = useState<BodyAxis>([0, 0, 1]);
+  const [subTarget, setSubTarget] = useState<TargetDirection>('EARTH_CENTER');
+  const [subBodyAxis, setSubBodyAxis] = useState<BodyAxis>([1, 0, 0]);
+
   const handleModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const mode = e.target.value as ControlMode;
-    // Keep current pointing mode when switching to POINTING
-    if (mode === 'POINTING' && telemetry?.control.pointingMode) {
+    // Keep current pointing mode when switching to 3Axis
+    if (mode === '3Axis' && telemetry?.control.pointingMode) {
       setControlMode(mode, { pointingMode: telemetry.control.pointingMode });
     } else {
       setControlMode(mode);
     }
   };
 
-  const handlePointingModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const pointingMode = e.target.value as PointingMode;
-    setControlMode('POINTING', { pointingMode });
-  };
-
   const handleTimeWarpChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setTimeWarp(parseFloat(e.target.value));
   };
 
+  const handlePreset = (preset: PointingConfig) => {
+    setMainTarget(preset.mainTarget);
+    setMainBodyAxis(preset.mainBodyAxis);
+    setSubTarget(preset.subTarget);
+    setSubBodyAxis(preset.subBodyAxis);
+    // Apply immediately
+    telemetryWS.setPointingConfig(preset);
+  };
+
+  const handleApplyConfig = () => {
+    const config: PointingConfig = {
+      mainTarget,
+      mainBodyAxis,
+      subTarget,
+      subBodyAxis,
+    };
+    telemetryWS.setPointingConfig(config);
+  };
+
   const statusClass = isConnected ? 'connected' : 'disconnected';
+  const is3AxisMode = telemetry?.control.mode === '3Axis';
 
   return (
     <div className="simulation-controls">
@@ -86,31 +186,109 @@ export function SimulationControls({ telemetryState }: SimulationControlsProps) 
       <div className="control-mode">
         <label>Control Mode:</label>
         <select
-          value={telemetry?.control.mode || 'IDLE'}
+          value={telemetry?.control.mode || 'Idle'}
           onChange={handleModeChange}
           disabled={!isConnected}
         >
-          <option value="IDLE">Idle</option>
-          <option value="DETUMBLING">Detumbling</option>
-          <option value="POINTING">Pointing</option>
-          <option value="UNLOADING">Unloading</option>
+          <option value="Idle">Idle</option>
+          <option value="Detumbling">Detumbling</option>
+          <option value="3Axis">3Axis</option>
         </select>
       </div>
 
-      {telemetry?.control.mode === 'POINTING' && (
-        <div className="pointing-mode">
-          <label>Pointing Target:</label>
-          <select
-            value={telemetry?.control.pointingMode || 'MANUAL'}
-            onChange={handlePointingModeChange}
+      {/* Axis Configuration - shown when 3Axis mode is selected */}
+      {is3AxisMode && (
+        <div className="axis-configuration">
+          <div className="preset-buttons">
+            {PRESETS.map(preset => (
+              <button
+                key={preset.name}
+                onClick={() => handlePreset(preset.config)}
+                disabled={!isConnected}
+                className="preset-btn"
+              >
+                {preset.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="axis-config-section">
+            <h4>Main Axis</h4>
+            <div className="config-row">
+              <label>Target:</label>
+              <select
+                value={mainTarget}
+                onChange={e => setMainTarget(e.target.value as TargetDirection)}
+                disabled={!isConnected}
+              >
+                {TARGET_DIRECTIONS.map(dir => (
+                  <option key={dir.value} value={dir.value}>
+                    {dir.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="config-row">
+              <label>Body:</label>
+              <select
+                value={bodyAxisToString(mainBodyAxis)}
+                onChange={e => {
+                  const selected = BODY_AXES.find(a => a.label === e.target.value);
+                  if (selected) setMainBodyAxis(selected.value);
+                }}
+                disabled={!isConnected}
+              >
+                {BODY_AXES.map(axis => (
+                  <option key={axis.label} value={axis.label}>
+                    {axis.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="axis-config-section">
+            <h4>Sub Axis</h4>
+            <div className="config-row">
+              <label>Target:</label>
+              <select
+                value={subTarget}
+                onChange={e => setSubTarget(e.target.value as TargetDirection)}
+                disabled={!isConnected}
+              >
+                {TARGET_DIRECTIONS.map(dir => (
+                  <option key={dir.value} value={dir.value}>
+                    {dir.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="config-row">
+              <label>Body:</label>
+              <select
+                value={bodyAxisToString(subBodyAxis)}
+                onChange={e => {
+                  const selected = BODY_AXES.find(a => a.label === e.target.value);
+                  if (selected) setSubBodyAxis(selected.value);
+                }}
+                disabled={!isConnected}
+              >
+                {BODY_AXES.map(axis => (
+                  <option key={axis.label} value={axis.label}>
+                    {axis.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <button
+            className="apply-btn"
+            onClick={handleApplyConfig}
             disabled={!isConnected}
           >
-            <option value="MANUAL">Manual</option>
-            <option value="SUN">Sun (+Z)</option>
-            <option value="NADIR">Nadir (-Z)</option>
-            <option value="GROUND_STATION">Ground Station</option>
-            <option value="IMAGING_TARGET">Imaging Target</option>
-          </select>
+            Apply
+          </button>
         </div>
       )}
 
@@ -152,8 +330,10 @@ export function SimulationControls({ telemetryState }: SimulationControlsProps) 
           <div className="telemetry-section">
             <h4>Control</h4>
             <p>Mode: {telemetry.control.mode}</p>
-            {telemetry.control.mode === 'POINTING' && (
-              <p>Target: {telemetry.control.pointingMode}</p>
+            {telemetry.control.mode === '3Axis' && (
+              <>
+                <p>Unloading: {telemetry.control.isUnloading ? '🔄 Active' : 'Off'}</p>
+              </>
             )}
             <p>Attitude Error: {telemetry.control.error.attitude.toFixed(2)}deg</p>
             <p>Rate: {(telemetry.control.error.rate * 180 / Math.PI).toFixed(2)}deg/s</p>

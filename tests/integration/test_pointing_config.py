@@ -142,7 +142,7 @@ class TestPointingConfig:
     def test_pointing_config_with_control_mode(self):
         """Test that custom config works with POINTING control mode."""
         engine = SimulationEngine()
-        engine.set_control_mode("POINTING")
+        engine.set_control_mode("3Axis")
 
         # Set custom config (+X → Sun, +Y → Nadir)
         engine.set_pointing_config(

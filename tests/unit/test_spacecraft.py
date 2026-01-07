@@ -161,7 +161,7 @@ class TestSpacecraftDynamics:
         # Set target attitude different from current to generate RW torque
         target = from_axis_angle(np.array([0.0, 0.0, 1.0]), 0.5)
         sc.set_target_attitude(target)
-        sc.set_control_mode("POINTING")
+        sc.set_control_mode("3Axis")
 
         # Initial total angular momentum
         L_initial = sc.get_total_angular_momentum()
@@ -265,7 +265,7 @@ class TestSpacecraftControlModes:
         initial_rate = np.linalg.norm(sc.angular_velocity)
 
         # Enable detumbling mode
-        sc.set_control_mode("DETUMBLING")
+        sc.set_control_mode("Detumbling")
 
         # Simulate with inertial magnetic field (body field changes as we rotate)
         b_field_inertial = np.array([30e-6, 20e-6, 10e-6])
@@ -288,7 +288,7 @@ class TestSpacecraftControlModes:
         sc.set_target_attitude(target)
 
         # Enable pointing mode
-        sc.set_control_mode("POINTING")
+        sc.set_control_mode("3Axis")
 
         # Initial error
         initial_error = sc.get_attitude_error()
@@ -306,7 +306,7 @@ class TestSpacecraftControlModes:
         """Idle mode should not command actuators."""
         sc = Spacecraft(angular_velocity=np.array([0.01, 0.0, 0.0]))
 
-        sc.set_control_mode("IDLE")
+        sc.set_control_mode("Idle")
 
         # Step
         sc.step(dt=0.1, magnetic_field=np.array([30e-6, 20e-6, 10e-6]))

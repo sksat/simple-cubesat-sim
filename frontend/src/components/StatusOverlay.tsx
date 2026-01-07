@@ -21,8 +21,11 @@ export function StatusOverlay({ telemetry }: StatusOverlayProps) {
 
   const { control, power, environment } = telemetry;
 
+  // Unloading status
+  const isUnloading = control.isUnloading ?? false;
+
   // Format mode display
-  const modeDisplay = control.mode === 'POINTING'
+  const modeDisplay = control.mode === '3Axis'
     ? `${control.mode} (${control.pointingMode})`
     : control.mode;
 
@@ -41,7 +44,10 @@ export function StatusOverlay({ telemetry }: StatusOverlayProps) {
 
   return (
     <div className="status-overlay">
-      <div>MODE: {modeDisplay}</div>
+      <div>
+        MODE: {modeDisplay}
+        {isUnloading && <span className="unloading-indicator"> 🔄 Unloading</span>}
+      </div>
       <div>
         COMM: GS {commStatus}  PWR: {socPercent}% {powerIcon}{netPower}W {eclipseIcon}
       </div>

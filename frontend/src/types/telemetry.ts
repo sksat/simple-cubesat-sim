@@ -53,6 +53,8 @@ export interface PointingConfig {
 
 export interface ControlState {
   mode: ControlMode;
+  /** True when RW momentum unloading is in progress (3Axis mode only) */
+  isUnloading: boolean;
   pointingMode: PointingMode;
   targetQuaternion: [number, number, number, number];
   error: {
@@ -158,7 +160,7 @@ export interface Telemetry {
 }
 
 export type SimulationState = 'STOPPED' | 'RUNNING' | 'PAUSED';
-export type ControlMode = 'IDLE' | 'DETUMBLING' | 'POINTING' | 'UNLOADING';
+export type ControlMode = 'Idle' | 'Detumbling' | '3Axis';
 
 export interface StatusMessage {
   type: 'status';

@@ -97,9 +97,14 @@ frontend/src/
 ### Control Modes
 | Mode | Actuator | Algorithm |
 |------|----------|-----------|
-| DETUMBLING | MTQ | B-dot: `m = -k * dB/dt` |
-| POINTING | RW | PD: `T = -Kp*q_err - Kd*ω` |
-| UNLOADING | MTQ + RW | `m = k * (B × H_rw) / |B|²` |
+| Idle | None | No control |
+| Detumbling | MTQ | B-dot: `m = -k * dB/dt` |
+| 3Axis | RW + MTQ (auto) | PD control with auto-unloading |
+
+**3Axis Mode Details:**
+- Primary: RW for 3-axis attitude control (`T = -Kp*q_err - Kd*ω`)
+- Secondary: Automatic MTQ unloading when RW speed exceeds threshold
+- `isUnloading` flag in telemetry indicates unloading is active
 
 ### 6U CubeSat Dimensions
 - X axis: 1U (10cm)
@@ -148,14 +153,14 @@ This catches rendering issues (WebGPU compatibility, Three.js errors) early.
     reactionWheels: { speed, torque, momentum },
     magnetorquers: { dipoleMoment, power }
   },
-  control: { mode, error: { attitude, rate } }
+  control: { mode, isUnloading, error: { attitude, rate } }
 }
 ```
 
 ### Client → Server
 ```typescript
 { type: "command", command: "START" | "STOP" | "PAUSE" | "RESET" }
-{ type: "mode", mode: "DETUMBLING" | "POINTING" | "UNLOADING" | "IDLE" }
+{ type: "mode", mode: "Idle" | "Detumbling" | "3Axis" }
 { type: "config", timeWarp: number }
 ```
 
