@@ -3,6 +3,7 @@ import { Panel, Group, Separator } from 'react-resizable-panels'
 import { SimulationControls } from './components/SimulationControls'
 import { TimelinePanel } from './components/timeline'
 import { PointingConfigPanel } from './components/PointingConfigPanel'
+import { RightPanel } from './components/RightPanel'
 import { SatelliteView } from './components/visualization/SatelliteView'
 import { GlobeView } from './components/visualization/GlobeView'
 import { TelemetryCharts } from './components/charts/TelemetryCharts'
@@ -49,14 +50,6 @@ function App() {
       <main className="app-main">
         <aside className="sidebar">
           <SimulationControls telemetryState={telemetryState} />
-          <TimelinePanel
-            telemetry={telemetryState.telemetry}
-            isConnected={telemetryState.isConnected}
-            onAddAction={addAction}
-            onRemoveAction={removeAction}
-            onRefreshContact={refreshContact}
-            onSetImagingPreset={setImagingPreset}
-          />
           <PointingConfigPanel isConnected={telemetryState.isConnected} />
         </aside>
 
@@ -109,6 +102,17 @@ function App() {
             </Panel>
           </Group>
         </div>
+
+        <RightPanel title="Timeline" defaultCollapsed={true}>
+          <TimelinePanel
+            telemetry={telemetryState.telemetry}
+            isConnected={telemetryState.isConnected}
+            onAddAction={addAction}
+            onRemoveAction={removeAction}
+            onRefreshContact={refreshContact}
+            onSetImagingPreset={setImagingPreset}
+          />
+        </RightPanel>
       </main>
     </div>
   )

@@ -27,7 +27,7 @@
 .app-main {
   flex: 1;
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 320px 1fr auto;
   grid-template-rows: 1fr;
   gap: 1px;
   background: #333;
@@ -545,7 +545,7 @@
 @media (max-height: 1200px) {
   /* Reduce sidebar width */
   .app-main {
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: 240px 1fr auto;
     grid-template-rows: 1fr;
     min-height: 0;
     overflow: hidden;
