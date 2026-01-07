@@ -306,6 +306,8 @@ export function SimulationControls({ telemetryState }: SimulationControlsProps) 
           <option value="5">5x</option>
           <option value="10">10x</option>
           <option value="50">50x</option>
+          <option value="100">100x</option>
+          <option value="1000">1000x</option>
         </select>
       </div>
 

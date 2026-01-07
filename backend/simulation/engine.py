@@ -211,7 +211,13 @@ class SimulationEngine:
         effective_dt = self.dt * self._time_warp
 
         # Maximum physics dt to maintain accuracy (especially for B-dot)
-        max_physics_dt = 0.1  # seconds
+        # Scale up for high time warps to reduce computational load
+        if self._time_warp >= 1000:
+            max_physics_dt = 1.0  # 100 sub-steps at x1000
+        elif self._time_warp >= 100:
+            max_physics_dt = 0.5  # 20 sub-steps at x100
+        else:
+            max_physics_dt = 0.1  # seconds (default)
 
         # Get magnetic field (constant during this macro step)
         b_field_inertial = self.get_magnetic_field()
