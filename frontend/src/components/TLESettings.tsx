@@ -21,6 +21,7 @@ interface TLESettingsProps {
 const CELESTRAK_SEARCH_URL = 'https://celestrak.org/NORAD/elements/gp.php';
 
 export function TLESettings({ isConnected }: TLESettingsProps) {
+  const [collapsed, setCollapsed] = useState(true);
   const [currentTLE, setCurrentTLE] = useState<TLEData | null>(null);
   const [line1, setLine1] = useState('');
   const [line2, setLine2] = useState('');
@@ -175,69 +176,82 @@ export function TLESettings({ isConnected }: TLESettingsProps) {
 
   return (
     <div className="tle-settings">
-      <h3>Orbit (TLE)</h3>
+      <div className="panel-header" onClick={() => setCollapsed(!collapsed)}>
+        <span>{collapsed ? '▶' : '▼'}</span>
+        <h3>Orbit (TLE)</h3>
+      </div>
 
-      {currentTLE && (
-        <div className="telemetry-section">
-          <h4>Current Orbit</h4>
-          <p>Inclination: {currentTLE.inclination.toFixed(2)}°</p>
-          <p>Period: {(currentTLE.period / 60).toFixed(1)} min</p>
+      {collapsed && currentTLE && (
+        <div className="tle-summary">
+          {currentTLE.inclination.toFixed(1)}° / {(currentTLE.period / 60).toFixed(0)}min
         </div>
       )}
 
-      <div className="telemetry-section">
-        <h4>Fetch from CelesTrak</h4>
-        <div className="tle-fetch-row">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Satellite name (e.g., AE1C)"
-            disabled={!isConnected || loading}
-          />
-          <button
-            onClick={handleFetchFromCelesTrak}
-            disabled={!isConnected || loading || !searchQuery}
-          >
-            {loading ? 'Loading...' : 'Fetch'}
-          </button>
-        </div>
-      </div>
+      {!collapsed && (
+        <>
+          {currentTLE && (
+            <div className="telemetry-section">
+              <h4>Current Orbit</h4>
+              <p>Inclination: {currentTLE.inclination.toFixed(2)}°</p>
+              <p>Period: {(currentTLE.period / 60).toFixed(1)} min</p>
+            </div>
+          )}
 
-      <div className="telemetry-section">
-        <h4>Manual TLE Input</h4>
-        <div className="tle-input">
-          <label>Line 1:</label>
-          <input
-            type="text"
-            value={line1}
-            onChange={(e) => setLine1(e.target.value)}
-            placeholder="1 NNNNN..."
-            disabled={!isConnected || loading}
-            className="tle-line-input"
-          />
-        </div>
-        <div className="tle-input">
-          <label>Line 2:</label>
-          <input
-            type="text"
-            value={line2}
-            onChange={(e) => setLine2(e.target.value)}
-            placeholder="2 NNNNN..."
-            disabled={!isConnected || loading}
-            className="tle-line-input"
-          />
-        </div>
-        <button
-          onClick={handleSetTLE}
-          disabled={!isConnected || loading || !line1 || !line2}
-          className="tle-set-button"
-        >
-          {loading ? 'Setting...' : 'Set TLE'}
-        </button>
-      </div>
+          <div className="telemetry-section">
+            <h4>Fetch from CelesTrak</h4>
+            <div className="tle-fetch-row">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Satellite name (e.g., AE1C)"
+                disabled={!isConnected || loading}
+              />
+              <button
+                onClick={handleFetchFromCelesTrak}
+                disabled={!isConnected || loading || !searchQuery}
+              >
+                {loading ? 'Loading...' : 'Fetch'}
+              </button>
+            </div>
+          </div>
 
-      {error && <div className="tle-error">{error}</div>}
+          <div className="telemetry-section">
+            <h4>Manual TLE Input</h4>
+            <div className="tle-input">
+              <label>Line 1:</label>
+              <input
+                type="text"
+                value={line1}
+                onChange={(e) => setLine1(e.target.value)}
+                placeholder="1 NNNNN..."
+                disabled={!isConnected || loading}
+                className="tle-line-input"
+              />
+            </div>
+            <div className="tle-input">
+              <label>Line 2:</label>
+              <input
+                type="text"
+                value={line2}
+                onChange={(e) => setLine2(e.target.value)}
+                placeholder="2 NNNNN..."
+                disabled={!isConnected || loading}
+                className="tle-line-input"
+              />
+            </div>
+            <button
+              onClick={handleSetTLE}
+              disabled={!isConnected || loading || !line1 || !line2}
+              className="tle-set-button"
+            >
+              {loading ? 'Setting...' : 'Set TLE'}
+            </button>
+          </div>
+
+          {error && <div className="tle-error">{error}</div>}
+        </>
+      )}
     </div>
   );
 }
