@@ -28,27 +28,82 @@
   flex: 1;
   display: grid;
   grid-template-columns: 320px 1fr;
-  grid-template-rows: 2fr 1fr;
+  grid-template-rows: 1fr;
   gap: 1px;
   background: #333;
   min-height: 0;
 }
 
 .sidebar {
-  grid-row: 1 / -1;
   background: #1a1a2e;
   overflow-y: auto;
+}
+
+/* Resizable content area */
+.content-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Resize handle between panels */
+.resize-handle {
+  flex: 0 0 6px;
+  background: #333;
+  position: relative;
+  cursor: row-resize;
+  transition: background-color 0.15s ease;
+}
+
+.resize-handle:hover,
+.resize-handle[data-resize-handle-active] {
+  background: #4fc3f7;
+}
+
+/* Grip indicator (3 lines) */
+.resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 6px;
+  background: repeating-linear-gradient(
+    to bottom,
+    #666 0px,
+    #666 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.resize-handle:hover::before,
+.resize-handle[data-resize-handle-active]::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    #fff 0px,
+    #fff 1px,
+    transparent 1px,
+    transparent 3px
+  );
 }
 
 .visualization {
   position: relative;
   background: #0a0a1a;
-  min-height: 0; /* Allow shrinking in grid */
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 
 .charts {
   background: #1a1a2e;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .placeholder {
@@ -469,10 +524,10 @@
 
 /* Compact layout for 1080p and height-constrained displays */
 @media (max-height: 1200px) {
-  /* Reduce sidebar width and balance 3D view with charts */
+  /* Reduce sidebar width */
   .app-main {
     grid-template-columns: 240px 1fr;
-    grid-template-rows: 0.7fr 1fr;
+    grid-template-rows: 1fr;
     min-height: 0;
     overflow: hidden;
   }
@@ -483,17 +538,6 @@
     max-height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-  }
-
-  /* Ensure right side content doesn't expand grid */
-  .visualization {
-    min-height: 0;
-    height: 100%;
-  }
-
-  .charts {
-    min-height: 0;
-    height: 100%;
   }
 
   /* Reduce simulation controls padding */

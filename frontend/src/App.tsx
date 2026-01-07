@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Panel, Group, Separator } from 'react-resizable-panels'
 import { SimulationControls } from './components/SimulationControls'
 import { TimelinePanel } from './components/timeline'
 import { PointingConfigPanel } from './components/PointingConfigPanel'
@@ -59,47 +60,55 @@ function App() {
           <PointingConfigPanel isConnected={telemetryState.isConnected} />
         </aside>
 
-        <section className="visualization">
-          <div className="view-mode-toggle">
-            <button
-              className={viewMode === 'attitude' ? 'active' : ''}
-              onClick={() => setViewMode('attitude')}
-            >
-              Attitude
-            </button>
-            <button
-              className={viewMode === 'orbit' ? 'active' : ''}
-              onClick={() => setViewMode('orbit')}
-            >
-              Orbit
-            </button>
-            {viewMode === 'orbit' && (
-              <>
-                <button
-                  className={viewCenter === 'earth' ? 'active' : ''}
-                  onClick={() => setViewCenter('earth')}
-                >
-                  Earth
-                </button>
-                <button
-                  className={viewCenter === 'satellite' ? 'active' : ''}
-                  onClick={() => setViewCenter('satellite')}
-                >
-                  Satellite
-                </button>
-              </>
-            )}
-          </div>
-          {viewMode === 'attitude' ? (
-            <SatelliteView telemetry={telemetryState.telemetry} />
-          ) : (
-            <GlobeView telemetry={telemetryState.telemetry} orbitHistory={orbitHistory} viewCenter={viewCenter} onViewCenterChange={setViewCenter} />
-          )}
-        </section>
-
-        <section className="charts">
-          <TelemetryCharts history={history} />
-        </section>
+        <div className="content-area">
+          <Group orientation="vertical" id="cubesat-layout" style={{ flex: 1 }}>
+            <Panel defaultSize={66} minSize={20}>
+              <section className="visualization">
+                <div className="view-mode-toggle">
+                  <button
+                    className={viewMode === 'attitude' ? 'active' : ''}
+                    onClick={() => setViewMode('attitude')}
+                  >
+                    Attitude
+                  </button>
+                  <button
+                    className={viewMode === 'orbit' ? 'active' : ''}
+                    onClick={() => setViewMode('orbit')}
+                  >
+                    Orbit
+                  </button>
+                  {viewMode === 'orbit' && (
+                    <>
+                      <button
+                        className={viewCenter === 'earth' ? 'active' : ''}
+                        onClick={() => setViewCenter('earth')}
+                      >
+                        Earth
+                      </button>
+                      <button
+                        className={viewCenter === 'satellite' ? 'active' : ''}
+                        onClick={() => setViewCenter('satellite')}
+                      >
+                        Satellite
+                      </button>
+                    </>
+                  )}
+                </div>
+                {viewMode === 'attitude' ? (
+                  <SatelliteView telemetry={telemetryState.telemetry} />
+                ) : (
+                  <GlobeView telemetry={telemetryState.telemetry} orbitHistory={orbitHistory} viewCenter={viewCenter} onViewCenterChange={setViewCenter} />
+                )}
+              </section>
+            </Panel>
+            <Separator className="resize-handle" />
+            <Panel defaultSize={34} minSize={15}>
+              <section className="charts">
+                <TelemetryCharts history={history} />
+              </section>
+            </Panel>
+          </Group>
+        </div>
       </main>
     </div>
   )
