@@ -13,6 +13,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Telemetry } from '../../types/telemetry';
 import type { OrbitHistoryPoint } from '../../hooks/useOrbitHistory';
 import { CubeSatModel, SunDirectionArrow } from './CubeSatModel';
+import { GroundStationMarker } from './GroundStationMarker';
 import { StatusOverlay } from '../StatusOverlay';
 
 /** Camera offset in orbit frame (spherical coordinates) */
@@ -80,6 +81,11 @@ export function GlobeView({ telemetry, orbitHistory, viewCenter }: GlobeViewProp
 
         {/* Ground track from orbit history */}
         <GroundTrack history={orbitHistory} />
+
+        {/* Ground stations with visibility footprints */}
+        {telemetry?.groundStations?.map((station) => (
+          <GroundStationMarker key={station.name} station={station} />
+        ))}
       </Canvas>
 
       {/* Status overlay */}

@@ -510,7 +510,90 @@ class SimulationEngine:
                 "nextContact": self._get_next_contact_dict(),
                 "actions": self._timeline.to_dict_list(),
             },
+
+            "groundStations": self._get_ground_stations_telemetry(),
         }
+
+    def _get_ground_stations_telemetry(self) -> list[dict]:
+        """Get ground station data for frontend rendering.
+
+        Returns:
+            List of ground station data with Three.js coordinates and visibility footprint
+        """
+        from backend.utils.coordinates import geodetic_to_threejs
+
+        stations = [self._ground_station]  # Currently only Makinohara
+        result = []
+
+        # Get satellite altitude for footprint calculation
+        orbit = self.get_orbit_position()
+        sat_altitude_km = orbit["altitude"]
+
+        for gs in stations:
+            # Convert ground station position to Three.js coordinates
+            pos_threejs = geodetic_to_threejs(
+                gs.latitude_deg,
+                gs.longitude_deg,
+                gs.altitude_m / 1000.0,  # Convert m to km
+            )
+
+            # Calculate visibility footprint angular radius
+            footprint_radius_deg = self._calculate_footprint_radius(
+                sat_altitude_km,
+                gs.min_elevation_deg,
+            )
+
+            result.append({
+                "name": gs.name,
+                "positionThreeJS": list(pos_threejs),
+                "latitude": gs.latitude_deg,
+                "longitude": gs.longitude_deg,
+                "minElevation": gs.min_elevation_deg,
+                "footprintRadius": footprint_radius_deg,
+                "isVisible": self._ground_station_visible,
+            })
+
+        return result
+
+    def _calculate_footprint_radius(
+        self,
+        sat_altitude_km: float,
+        min_elevation_deg: float,
+    ) -> float:
+        """Calculate visibility footprint angular radius.
+
+        The footprint is the circle on Earth where the satellite can be seen
+        at or above the minimum elevation angle.
+
+        Args:
+            sat_altitude_km: Satellite altitude above Earth surface (km)
+            min_elevation_deg: Minimum elevation angle for visibility (degrees)
+
+        Returns:
+            Earth-centric angle in degrees defining the visibility circle
+        """
+        import math
+
+        R_earth = 6371.0  # km
+        R_orbit = R_earth + sat_altitude_km
+
+        elev_rad = math.radians(min_elevation_deg)
+
+        # For satellite visibility from ground station:
+        # Using spherical geometry:
+        # earth_angle = arccos(R_earth * cos(elev) / R_orbit) - elev
+        cos_elev = math.cos(elev_rad)
+        ratio = R_earth * cos_elev / R_orbit
+
+        if ratio > 1.0:
+            # Satellite too low, use horizon angle
+            ratio = R_earth / R_orbit
+            earth_angle = math.acos(ratio)
+        else:
+            # Standard formula
+            earth_angle = math.acos(ratio) - elev_rad
+
+        return math.degrees(earth_angle)
 
     def _get_sun_direction(self) -> list[float]:
         """Get current sun direction in Three.js scene coordinates.

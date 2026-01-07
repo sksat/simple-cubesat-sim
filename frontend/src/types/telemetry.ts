@@ -143,6 +143,20 @@ export interface OrbitState {
   positionThreeJS: [number, number, number];
 }
 
+/** Ground station state for 3D visualization */
+export interface GroundStationState {
+  name: string;
+  /** Three.js scene coordinates (normalized, Earth radius = 1) */
+  positionThreeJS: [number, number, number];
+  latitude: number;
+  longitude: number;
+  minElevation: number;
+  /** Visibility footprint angular radius in degrees (Earth-centric angle) */
+  footprintRadius: number;
+  /** True if satellite is currently visible from this station */
+  isVisible: boolean;
+}
+
 export interface Telemetry {
   type: 'telemetry';
   timestamp: number;
@@ -157,6 +171,7 @@ export interface Telemetry {
   orbit?: OrbitState;
   power?: PowerState;
   timeline?: TimelineState;
+  groundStations?: GroundStationState[];
 }
 
 export type SimulationState = 'STOPPED' | 'RUNNING' | 'PAUSED';
