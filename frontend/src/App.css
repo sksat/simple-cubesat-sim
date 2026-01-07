@@ -273,6 +273,14 @@
   margin: 0.1rem 0;
 }
 
+.status-overlay .contact-pending {
+  color: #ff9800;
+}
+
+.status-overlay .contact-active {
+  color: #4caf50;
+}
+
 /* Charts */
 .telemetry-charts-wrapper {
   display: flex;

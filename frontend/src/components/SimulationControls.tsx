@@ -317,13 +317,6 @@ export function SimulationControls({ telemetryState }: SimulationControlsProps) 
         <div className="telemetry-display">
           <h3>Telemetry</h3>
           <div className="telemetry-section">
-            <h4>Time</h4>
-            <p>Elapsed: {telemetry.timestamp.toFixed(1)}s</p>
-            <p>UTC: {new Date(telemetry.absoluteTime).toISOString().replace('T', ' ').slice(0, 19)}</p>
-            <p>State: {telemetry.state}</p>
-          </div>
-
-          <div className="telemetry-section">
             <h4>Attitude</h4>
             <p>Euler (deg): [{telemetry.attitude.eulerAngles.map(a => a.toFixed(1)).join(', ')}]</p>
             <p>Angular Velocity (rad/s): [{telemetry.attitude.angularVelocity.map(v => v.toFixed(4)).join(', ')}]</p>
